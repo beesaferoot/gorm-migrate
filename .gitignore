@@ -1,0 +1,10 @@
+migrations/*
+migrations
+.env
+.DS_Store
+.idea
+.vscode
+test.log
+main.go.txt
+ast_dump.go.txt
+.zed

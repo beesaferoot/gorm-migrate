@@ -7,7 +7,8 @@ GOGET=$(GOCMD) get
 GOMOD=$(GOCMD) mod
 
 # Binary names
-MIGRATE_BINARY=bin/migrate
+BINARY_NAME=gorm-schema
+BINARY_PATH=bin/$(BINARY_NAME)
 
 # Directories
 BIN_DIR=bin
@@ -19,9 +20,9 @@ all: clean build
 
 # Build the migration tool
 build:
-	@echo "Building migration tool..."
+	@echo "Building gorm-schema tool..."
 	@mkdir -p $(BIN_DIR)
-	$(GOBUILD) -o $(MIGRATE_BINARY) ./cmd/migrate
+	$(GOBUILD) -o $(BINARY_PATH) ./cmd/gorm-schema
 
 # Clean build files
 clean:
@@ -46,20 +47,20 @@ migrate-create:
 		exit 1; \
 	fi
 	@echo "Creating new migration: $(name)..."
-	$(GOBUILD) -o $(MIGRATE_BINARY) ./cmd/migrate
-	./$(MIGRATE_BINARY) -action create -name $(name)
+	$(GOBUILD) -o $(BINARY_PATH) ./cmd/gorm-schema
+	./$(BINARY_PATH) create $(name)
 
 # Apply pending migrations
 migrate-up:
 	@echo "Applying pending migrations..."
-	$(GOBUILD) -o $(MIGRATE_BINARY) ./cmd/migrate
-	./$(MIGRATE_BINARY) -action up
+	$(GOBUILD) -o $(BINARY_PATH) ./cmd/gorm-schema
+	./$(BINARY_PATH) up
 
 # Rollback the last migration
 migrate-down:
 	@echo "Rolling back last migration..."
-	$(GOBUILD) -o $(MIGRATE_BINARY) ./cmd/migrate
-	./$(MIGRATE_BINARY) -action down
+	$(GOBUILD) -o $(BINARY_PATH) ./cmd/gorm-schema
+	./$(BINARY_PATH) down
 
 # Run linters
 lint:
@@ -82,7 +83,7 @@ security-check:
 # Show help
 help:
 	@echo "Available commands:"
-	@echo "  make build          - Build the migration tool"
+	@echo "  make build          - Build the gorm-schema tool"
 	@echo "  make clean          - Clean build files"
 	@echo "  make test           - Run tests"
 	@echo "  make deps           - Install dependencies"

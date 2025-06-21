@@ -7,36 +7,31 @@ import (
 	"gorm.io/gorm"
 )
 
-// Migration represents a single database migration
 type Migration struct {
-	Version   string    // Unique version identifier (e.g., timestamp)
-	Name      string    // Human-readable name of the migration
-	CreatedAt time.Time // When the migration was created
+	Version   string
+	Name      string
+	CreatedAt time.Time
 	Up        func(*gorm.DB) error
 	Down      func(*gorm.DB) error
 }
 
-// MigrationRecord represents a record of an applied migration
 type MigrationRecord struct {
 	Version   string    `gorm:"primaryKey"`
 	Name      string    `gorm:"not null"`
 	AppliedAt time.Time `gorm:"not null"`
 }
 
-// Global migration registry
 var (
 	globalMigrations = make([]*Migration, 0)
 	registryMutex    sync.RWMutex
 )
 
-// RegisterMigration registers a migration globally
 func RegisterMigration(migration *Migration) {
 	registryMutex.Lock()
 	defer registryMutex.Unlock()
 	globalMigrations = append(globalMigrations, migration)
 }
 
-// GetRegisteredMigrations returns all registered migrations
 func GetRegisteredMigrations() []*Migration {
 	registryMutex.RLock()
 	defer registryMutex.RUnlock()
@@ -46,13 +41,11 @@ func GetRegisteredMigrations() []*Migration {
 	return migrations
 }
 
-// Migrator handles the execution of migrations
 type Migrator struct {
 	db         *gorm.DB
 	migrations []*Migration
 }
 
-// NewMigrator creates a new Migrator instance
 func NewMigrator(db *gorm.DB) *Migrator {
 	return &Migrator{
 		db:         db,
@@ -60,17 +53,14 @@ func NewMigrator(db *gorm.DB) *Migrator {
 	}
 }
 
-// Register adds a migration to the migrator
 func (m *Migrator) Register(migration *Migration) {
 	m.migrations = append(m.migrations, migration)
 }
 
-// ensureVersionTable creates the version tracking table if it doesn't exist
 func (m *Migrator) ensureVersionTable() error {
 	return m.db.AutoMigrate(&MigrationRecord{})
 }
 
-// GetAppliedVersions returns a map of applied migration versions
 func (m *Migrator) GetAppliedVersions() (map[string]bool, error) {
 	if err := m.ensureVersionTable(); err != nil {
 		return nil, err
@@ -88,7 +78,6 @@ func (m *Migrator) GetAppliedVersions() (map[string]bool, error) {
 	return versions, nil
 }
 
-// Up applies all pending migrations
 func (m *Migrator) Up() error {
 	applied, err := m.GetAppliedVersions()
 	if err != nil {
@@ -115,14 +104,12 @@ func (m *Migrator) Up() error {
 	return nil
 }
 
-// Down rolls back the last applied migration
 func (m *Migrator) Down() error {
 	var lastRecord MigrationRecord
 	if err := m.db.Order("applied_at DESC").First(&lastRecord).Error; err != nil {
 		return err
 	}
 
-	// Find the corresponding migration
 	var targetMigration *Migration
 	for _, migration := range m.migrations {
 		if migration.Version == lastRecord.Version {
@@ -132,19 +119,16 @@ func (m *Migrator) Down() error {
 	}
 
 	if targetMigration == nil {
-		return nil // Migration not found, might have been deleted
+		return nil
 	}
 
-	// Execute the down migration
 	if err := targetMigration.Down(m.db); err != nil {
 		return err
 	}
 
-	// Remove the migration record
 	return m.db.Delete(&lastRecord).Error
 }
 
-// ResetMigrations clears the global migration registry (for testing)
 func ResetMigrations() {
 	registryMutex.Lock()
 	defer registryMutex.Unlock()

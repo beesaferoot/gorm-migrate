@@ -1,6 +1,7 @@
 package migration
 
 import (
+	"os"
 	"testing"
 	"time"
 
@@ -13,6 +14,10 @@ import (
 )
 
 func TestMigrationFile(t *testing.T) {
+	// Set test hook to use registry only
+	os.Setenv("TEST_MIGRATION_REGISTRY_ONLY", "1")
+	defer os.Unsetenv("TEST_MIGRATION_REGISTRY_ONLY")
+
 	migration.ResetMigrations()
 	// Create migration loader with template
 	template := &file.MigrationTemplate{

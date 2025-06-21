@@ -1,5 +1,10 @@
 # GORM Schema Migration Tool
 
+[![CI](https://github.com/beesaferoot/gorm-schema/workflows/CI/badge.svg)](https://github.com/beesaferoot/gorm-schema/actions)
+[![Go Report Card](https://goreportcard.com/badge/github.com/beesaferoot/gorm-schema)](https://goreportcard.com/report/github.com/beesaferoot/gorm-schema)
+[![Go Version](https://img.shields.io/github/go-mod/go-version/beesaferoot/gorm-schema)](https://go.dev/)
+[![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
 Automatically generate database migrations from your GORM models by comparing them with the current database schema.
 
 ## Features
@@ -94,6 +99,46 @@ CREATE UNIQUE INDEX idx_users_email ON users(email);
 | `DATABASE_URL`     | PostgreSQL connection string  | Yes                          |
 | `GORM_MODELS_PATH` | Path to your models directory | Yes                          |
 | `MIGRATIONS_PATH`  | Path for migration files      | No (default: `./migrations`) |
+
+## Testing
+
+### Run All Tests
+
+```bash
+make test
+```
+
+### Run Tests with Coverage
+
+```bash
+go test -v -coverprofile=coverage.out ./tests/...
+go tool cover -func=coverage.out
+```
+
+### Run Specific Test Packages
+
+```bash
+# Run diff tests
+go test ./tests/migration/diff/...
+
+# Run command tests
+go test ./tests/migration/...
+
+# Run with verbose output
+go test -v ./tests/...
+```
+
+### Run Linters
+
+```bash
+make lint
+```
+
+### Run Security Checks
+
+```bash
+make security-check
+```
 
 ## License
 

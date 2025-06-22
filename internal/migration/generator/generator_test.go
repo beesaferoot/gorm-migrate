@@ -155,8 +155,8 @@ func TestGenerateMigration_EmptyDiff(t *testing.T) {
 	schemaDiff := &diff.SchemaDiff{} // Empty diff
 	gen.SetSchemaDiff(schemaDiff)
 	err := gen.CreateMigration("empty_migration")
-	require.NoError(t, err)
-	// Verify the generated migration file is empty or contains only comments
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "no schema changes detected")
 }
 
 func TestGenerateMigration_MissingColumns(t *testing.T) {

@@ -81,7 +81,7 @@ func (g *Generator) CreateMigration(name string) error {
 	content := fmt.Sprintf(`package migrations
 
 import (
-	"gorm-schema/internal/migration"
+	"github.com/beesaferoot/gorm-schema/internal/migration"
 	"gorm.io/gorm"
 	"time"
 )

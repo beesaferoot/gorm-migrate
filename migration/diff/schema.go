@@ -42,8 +42,12 @@ func (c *SchemaComparer) GetModelSchemas(models ...interface{}) (map[string]*sch
 			columns = append(columns, field)
 		}
 		// Create a shallow copy of schema with only column fields
-		copySchema := *s
-		copySchema.Fields = columns
+		copySchema := schema.Schema{
+			Name:          s.Name,
+			Table:         s.Table,
+			Fields:        columns,
+			Relationships: schema.Relationships{}, // Create new empty relationships
+		}
 		modelSchemas[s.Table] = &copySchema
 	}
 
@@ -123,7 +127,17 @@ func (c *SchemaComparer) GetModelSchemas(models ...interface{}) (map[string]*sch
 				relationships.Many2Many = append(relationships.Many2Many, rel)
 			}
 		}
-		s.Relationships = relationships
+		// Create a new relationships instance to avoid copying locks
+		var newRelationships schema.Relationships
+		newRelationships.BelongsTo = append(newRelationships.BelongsTo, relationships.BelongsTo...)
+		newRelationships.HasMany = append(newRelationships.HasMany, relationships.HasMany...)
+		newRelationships.HasOne = append(newRelationships.HasOne, relationships.HasOne...)
+		newRelationships.Many2Many = append(newRelationships.Many2Many, relationships.Many2Many...)
+		// Use pointer indirection to update the fields directly, not the struct
+		s.Relationships.BelongsTo = newRelationships.BelongsTo
+		s.Relationships.HasMany = newRelationships.HasMany
+		s.Relationships.HasOne = newRelationships.HasOne
+		s.Relationships.Many2Many = newRelationships.Many2Many
 	}
 
 	// Sort tables based on dependencies
@@ -205,13 +219,11 @@ func (c *SchemaComparer) getCurrentSchema() (map[string]*schema.Schema, error) {
 			continue
 		}
 
-		// Get the schema from the statement
 		tableSchema := stmt.Schema
 		if tableSchema == nil {
 			continue
 		}
 
-		// Get column information using Migrator
 		columns, err := migrator.ColumnTypes(tableName)
 		if err != nil {
 			continue
@@ -247,190 +259,192 @@ func (c *SchemaComparer) getCurrentSchema() (map[string]*schema.Schema, error) {
 			fields = append(fields, field)
 		}
 
-		// Create the schema
-		schemas[tableName] = &schema.Schema{
-			Name:   tableName,
-			Table:  tableName,
-			Fields: fields,
+		// Build schema.Schema
+		parsedSchema := &schema.Schema{
+			Name:          toExportedFieldName(tableName),
+			Table:         tableName,
+			Fields:        fields,
+			Relationships: schema.Relationships{},
 		}
+		schemas[tableName] = parsedSchema
 	}
 
 	return schemas, nil
 }
 
-func (c *SchemaComparer) getCurrentSchemaByDialect(db *gorm.DB) (map[string]*schema.Schema, error) {
-	//nolint:staticcheck // explicit selector for clarity
-	switch db.Dialector.Name() {
-	case "sqlite":
-		return c.getSQLiteSchema(db)
-	case "postgres":
-		return c.getPostgresSchema(db)
-	default:
-		return nil, fmt.Errorf("getCurrentSchema only implemented for sqlite and postgres")
-	}
-}
+// func (c *SchemaComparer) getCurrentSchemaByDialect(db *gorm.DB) (map[string]*schema.Schema, error) {
+// 	//nolint:staticcheck // explicit selector for clarity
+// 	switch db.Dialector.Name() {
+// 	case "sqlite":
+// 		return c.getSQLiteSchema(db)
+// 	case "postgres":
+// 		return c.getPostgresSchema(db)
+// 	default:
+// 		return nil, fmt.Errorf("getCurrentSchema only implemented for sqlite and postgres")
+// 	}
+// }
 
-func (c *SchemaComparer) getPostgresSchema(db *gorm.DB) (map[string]*schema.Schema, error) {
-	tables := make(map[string]*schema.Schema)
+// func (c *SchemaComparer) getPostgresSchema(db *gorm.DB) (map[string]*schema.Schema, error) {
+// 	tables := make(map[string]*schema.Schema)
 
-	// Get all tables
-	rows, err := db.Raw(`
-		SELECT table_name 
-		FROM information_schema.tables 
-		WHERE table_schema = 'public' 
-		AND table_type = 'BASE TABLE'
-	`).Rows()
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
+// 	// Get all tables
+// 	rows, err := db.Raw(`
+// 		SELECT table_name 
+// 		FROM information_schema.tables 
+// 		WHERE table_schema = 'public' 
+// 		AND table_type = 'BASE TABLE'
+// 	`).Rows()
+// 	if err != nil {
+// 		return nil, err
+// 	}
+// 	defer rows.Close()
 
-	for rows.Next() {
-		var tableName string
-		if err := rows.Scan(&tableName); err != nil {
-			return nil, err
-		}
+// 	for rows.Next() {
+// 		var tableName string
+// 		if err := rows.Scan(&tableName); err != nil {
+// 			return nil, err
+// 		}
 
-		// Get column info with correct primary key detection
-		colRows, err := db.Raw(`
-			SELECT 
-				c.column_name, 
-				c.data_type, 
-				c.is_nullable, 
-				c.column_default,
-				(CASE WHEN kcu.column_name IS NOT NULL THEN true ELSE false END) as is_primary_key,
-				(CASE WHEN c.column_default LIKE 'nextval%' OR c.column_default LIKE 'gen_random_uuid%' THEN true ELSE false END) as is_auto_increment
-			FROM information_schema.columns c
-			LEFT JOIN information_schema.table_constraints tc 
-				ON tc.table_name = c.table_name 
-				AND tc.constraint_type = 'PRIMARY KEY'
-				AND tc.table_schema = c.table_schema
-			LEFT JOIN information_schema.key_column_usage kcu 
-				ON kcu.constraint_name = tc.constraint_name 
-				AND kcu.column_name = c.column_name
-				AND kcu.table_name = c.table_name
-				AND kcu.table_schema = c.table_schema
-			WHERE c.table_name = ? AND c.table_schema = 'public'
-			ORDER BY c.ordinal_position
-		`, tableName).Rows()
-		if err != nil {
-			return nil, err
-		}
+// 		// Get column info with correct primary key detection
+// 		colRows, err := db.Raw(`
+// 			SELECT 
+// 				c.column_name, 
+// 				c.data_type, 
+// 				c.is_nullable, 
+// 				c.column_default,
+// 				(CASE WHEN kcu.column_name IS NOT NULL THEN true ELSE false END) as is_primary_key,
+// 				(CASE WHEN c.column_default LIKE 'nextval%' OR c.column_default LIKE 'gen_random_uuid%' THEN true ELSE false END) as is_auto_increment
+// 			FROM information_schema.columns c
+// 			LEFT JOIN information_schema.table_constraints tc 
+// 				ON tc.table_name = c.table_name 
+// 				AND tc.constraint_type = 'PRIMARY KEY'
+// 				AND tc.table_schema = c.table_schema
+// 			LEFT JOIN information_schema.key_column_usage kcu 
+// 				ON kcu.constraint_name = tc.constraint_name 
+// 				AND kcu.column_name = c.column_name
+// 				AND kcu.table_name = c.table_name
+// 				AND kcu.table_schema = c.table_schema
+// 			WHERE c.table_name = ? AND c.table_schema = 'public'
+// 			ORDER BY c.ordinal_position
+// 		`, tableName).Rows()
+// 		if err != nil {
+// 			return nil, err
+// 		}
 
-		fields := make([]*schema.Field, 0)
-		for colRows.Next() {
-			var (
-				name       string
-				typeStr    string
-				nullable   string
-				defaultVal interface{}
-				isPK       bool
-				isAutoInc  bool
-			)
-			if err := colRows.Scan(&name, &typeStr, &nullable, &defaultVal, &isPK, &isAutoInc); err != nil {
-				colRows.Close()
-				return nil, err
-			}
+// 		fields := make([]*schema.Field, 0)
+// 		for colRows.Next() {
+// 			var (
+// 				name       string
+// 				typeStr    string
+// 				nullable   string
+// 				defaultVal interface{}
+// 				isPK       bool
+// 				isAutoInc  bool
+// 			)
+// 			if err := colRows.Scan(&name, &typeStr, &nullable, &defaultVal, &isPK, &isAutoInc); err != nil {
+// 				colRows.Close()
+// 				return nil, err
+// 			}
 
-			goFieldName := toExportedFieldName(name)
-			goType := postgresTypeToGoType(typeStr)
-			field := &schema.Field{
-				Name:          goFieldName,
-				DBName:        name,
-				DataType:      schema.DataType(goType),
-				NotNull:       nullable == "NO",
-				PrimaryKey:    isPK,
-				AutoIncrement: isAutoInc,
-				DefaultValue:  fmt.Sprintf("%v", defaultVal),
-				// Set proper metadata to match GORM expectations
-				Creatable: true,
-				Updatable: true,
-				Readable:  true,
-			}
-			fields = append(fields, field)
-		}
-		colRows.Close()
+// 			goFieldName := toExportedFieldName(name)
+// 			goType := postgresTypeToGoType(typeStr)
+// 			field := &schema.Field{
+// 				Name:          goFieldName,
+// 				DBName:        name,
+// 				DataType:      schema.DataType(goType),
+// 				NotNull:       nullable == "NO",
+// 				PrimaryKey:    isPK,
+// 				AutoIncrement: isAutoInc,
+// 				DefaultValue:  fmt.Sprintf("%v", defaultVal),
+// 				// Set proper metadata to match GORM expectations
+// 				Creatable: true,
+// 				Updatable: true,
+// 				Readable:  true,
+// 			}
+// 			fields = append(fields, field)
+// 		}
+// 		colRows.Close()
 
-		// Get foreign key info
-		fkRows, err := db.Raw(`
-			SELECT
-				kcu.column_name,
-				ccu.table_name AS foreign_table_name,
-				ccu.column_name AS foreign_column_name
-			FROM information_schema.table_constraints AS tc
-			JOIN information_schema.key_column_usage AS kcu
-				ON tc.constraint_name = kcu.constraint_name
-			JOIN information_schema.constraint_column_usage AS ccu
-				ON ccu.constraint_name = tc.constraint_name
-			WHERE tc.constraint_type = 'FOREIGN KEY' AND tc.table_name = ?
-		`, tableName).Rows()
-		if err != nil {
-			return nil, err
-		}
+// 		// Get foreign key info
+// 		fkRows, err := db.Raw(`
+// 			SELECT
+// 				kcu.column_name,
+// 				ccu.table_name AS foreign_table_name,
+// 				ccu.column_name AS foreign_column_name
+// 			FROM information_schema.table_constraints AS tc
+// 			JOIN information_schema.key_column_usage AS kcu
+// 				ON tc.constraint_name = kcu.constraint_name
+// 			JOIN information_schema.constraint_column_usage AS ccu
+// 				ON ccu.constraint_name = tc.constraint_name
+// 			WHERE tc.constraint_type = 'FOREIGN KEY' AND tc.table_name = ?
+// 		`, tableName).Rows()
+// 		if err != nil {
+// 			return nil, err
+// 		}
 
-		relationships := schema.Relationships{}
-		for fkRows.Next() {
-			var (
-				columnName        string
-				foreignTableName  string
-				foreignColumnName string
-			)
-			if err := fkRows.Scan(&columnName, &foreignTableName, &foreignColumnName); err != nil {
-				fkRows.Close()
-				return nil, err
-			}
+// 		relationships := schema.Relationships{}
+// 		for fkRows.Next() {
+// 			var (
+// 				columnName        string
+// 				foreignTableName  string
+// 				foreignColumnName string
+// 			)
+// 			if err := fkRows.Scan(&columnName, &foreignTableName, &foreignColumnName); err != nil {
+// 				fkRows.Close()
+// 				return nil, err
+// 			}
 
-			// Add belongs-to relationship
-			relationships.BelongsTo = append(relationships.BelongsTo, &schema.Relationship{
-				Type: schema.BelongsTo,
-				Field: &schema.Field{
-					Name:   toExportedFieldName(columnName),
-					DBName: columnName,
-				},
-			})
-		}
-		fkRows.Close()
+// 			// Add belongs-to relationship
+// 			relationships.BelongsTo = append(relationships.BelongsTo, &schema.Relationship{
+// 				Type: schema.BelongsTo,
+// 				Field: &schema.Field{
+// 					Name:   toExportedFieldName(columnName),
+// 					DBName: columnName,
+// 				},
+// 			})
+// 		}
+// 		fkRows.Close()
 
-		// Create schema
-		tables[tableName] = &schema.Schema{
-			Name:          toExportedFieldName(tableName),
-			Table:         tableName,
-			Fields:        fields,
-			Relationships: relationships,
-		}
-	}
+// 		// Create schema
+// 		tables[tableName] = &schema.Schema{
+// 			Name:          toExportedFieldName(tableName),
+// 			Table:         tableName,
+// 			Fields:        fields,
+// 			Relationships: schema.Relationships{}, // Create new empty relationships
+// 		}
+// 	}
 
-	return tables, nil
-}
+// 	return tables, nil
+// }
 
-func postgresTypeToGoType(pgType string) string {
-	switch pgType {
-	case "integer", "int", "int4":
-		return "int"
-	case "bigint", "int8":
-		return "int64"
-	case "smallint", "int2":
-		return "int"
-	case "character varying", "varchar", "text", "char", "character":
-		return "string"
-	case "boolean", "bool":
-		return "bool"
-	case "numeric", "decimal":
-		return "float64"
-	case "real", "float4":
-		return "float32"
-	case "double precision", "float8":
-		return "float64"
-	case "timestamp with time zone", "timestamp without time zone", "date", "time":
-		return "time.Time"
-	case "json", "jsonb":
-		return "json"
-	case "uuid":
-		return "string"
-	default:
-		return "string"
-	}
-}
+// func postgresTypeToGoType(pgType string) string {
+// 	switch pgType {
+// 	case "integer", "int", "int4":
+// 		return "int"
+// 	case "bigint", "int8":
+// 		return "int64"
+// 	case "smallint", "int2":
+// 		return "int"
+// 	case "character varying", "varchar", "text", "char", "character":
+// 		return "string"
+// 	case "boolean", "bool":
+// 		return "bool"
+// 	case "numeric", "decimal":
+// 		return "float64"
+// 	case "real", "float4":
+// 		return "float32"
+// 	case "double precision", "float8":
+// 		return "float64"
+// 	case "timestamp with time zone", "timestamp without time zone", "date", "time":
+// 		return "time.Time"
+// 	case "json", "jsonb":
+// 		return "json"
+// 	case "uuid":
+// 		return "string"
+// 	default:
+// 		return "string"
+// 	}
+// }
 
 // normalizeTableName converts a table name to lowercase for case-insensitive comparison
 func normalizeTableName(name string) string {
@@ -466,7 +480,7 @@ func (c *SchemaComparer) compareSchemas(current, target map[string]*schema.Schem
 			emptySchema := &schema.Schema{
 				Table:         targetSchema.Table,
 				Fields:        []*schema.Field{},
-				Relationships: schema.Relationships{},
+				Relationships: schema.Relationships{}, // Create new empty relationships
 			}
 			tableDiff := c.compareTable(emptySchema, targetSchema)
 			diff.TablesToCreate = append(diff.TablesToCreate, tableDiff)
@@ -980,7 +994,7 @@ func (c *SchemaComparer) getSQLiteSchema(db *gorm.DB) (map[string]*schema.Schema
 			Name:          toExportedFieldName(tableName),
 			Table:         tableName,
 			Fields:        fields,
-			Relationships: relationships,
+			Relationships: schema.Relationships{}, // Create new empty relationships
 		}
 		tables[tableName] = parsedSchema
 	}

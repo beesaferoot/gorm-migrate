@@ -216,12 +216,6 @@ go test -v ./tests/...
 make lint
 ```
 
-### Run Security Checks
-
-```bash
-make security-check
-```
-
 ## License
 
 MIT License - see [LICENSE](LICENSE) file for details.

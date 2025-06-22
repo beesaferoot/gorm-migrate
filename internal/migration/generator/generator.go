@@ -236,7 +236,10 @@ func adjustIndentLevel(line string, currentLevel int) int {
 
 	// Check for closing parenthesis to decrease indent
 	if strings.HasPrefix(line, ")") {
-		return currentLevel - 1
+		if currentLevel > 0 {
+			return currentLevel - 1
+		}
+		return 0
 	}
 
 	// Check if this is a column definition (has a data type)

@@ -1,8 +1,9 @@
 package schema
 
 import (
-	GORMSchema "gorm.io/gorm/schema"
 	"reflect"
+
+	GORMSchema "gorm.io/gorm/schema"
 )
 
 // Column represents a gorm field
@@ -15,7 +16,7 @@ func (c *Column) Type() string {
 }
 
 func (c *Column) ColumnName() string {
-	return c.Name
+	return c.DBName
 }
 
 func (c *Column) ColumnBindNames() []string {

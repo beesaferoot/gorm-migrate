@@ -28,8 +28,8 @@ func TestGenerateCreateTableSQL_ForeignKey(t *testing.T) {
 	}
 
 	sql := gen.generateCreateTableSQL(table)
-	require.Contains(t, sql, "CONSTRAINT fk_orders_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE")
-	require.Contains(t, sql, "CREATE TABLE orders (")
+	require.Contains(t, sql, "CONSTRAINT fk_orders_user_id_fkey FOREIGN KEY (\"user_id\") REFERENCES \"users\"(id) ON DELETE CASCADE")
+	require.Contains(t, sql, "CREATE TABLE \"orders\" (")
 	require.NotContains(t, sql, "DEFAULT NULL\n\tDEFAULT NULL")
 }
 
@@ -57,8 +57,8 @@ func TestGenerateCreateTableSQL_Indexes(t *testing.T) {
 	}
 
 	sql := gen.generateCreateTableSQL(table)
-	require.Contains(t, sql, "CONSTRAINT products_sku_unique UNIQUE (sku)")
-	require.Contains(t, sql, "CREATE INDEX products_category_id_idx ON products (category_id);")
+	require.Contains(t, sql, "CONSTRAINT products_sku_unique UNIQUE (\"sku\")")
+	require.Contains(t, sql, "CREATE INDEX products_category_id_idx ON \"products\" (\"category_id\");")
 }
 
 func TestGenerateCreateTableSQL_Formatting(t *testing.T) {
@@ -72,8 +72,8 @@ func TestGenerateCreateTableSQL_Formatting(t *testing.T) {
 	}
 
 	sql := gen.generateCreateTableSQL(table)
-	require.Contains(t, sql, "CREATE TABLE test_table (")
-	require.Contains(t, sql, "id integer NOT NULL PRIMARY KEY")
+	require.Contains(t, sql, "CREATE TABLE \"test_table\" (")
+	require.Contains(t, sql, "id SERIAL NOT NULL PRIMARY KEY")
 	require.Contains(t, sql, "name varchar(255) NOT NULL")
 	require.NotContains(t, sql, ",\n\n")
 	require.NotContains(t, sql, ",\n);")
@@ -141,9 +141,12 @@ func TestGenerateMigration_FullProcess(t *testing.T) {
 	sql := string(content)
 
 	// Verify the generated SQL
-	require.Contains(t, sql, "CREATE TABLE users (")
-	require.Contains(t, sql, "CREATE TABLE orders (")
-	require.Contains(t, sql, "CONSTRAINT fk_orders_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE")
+	require.Contains(t, sql, "CREATE TABLE \"users\" (")
+	require.Contains(t, sql, "CREATE TABLE \"orders\" (")
+	require.Contains(t, sql, "CONSTRAINT fk_orders_user_id_fkey")
+	require.Contains(t, sql, "FOREIGN KEY (\"user_id\")")
+	require.Contains(t, sql, "REFERENCES \"users\"(id)")
+	require.Contains(t, sql, "ON DELETE CASCADE")
 }
 
 func TestGenerateMigration_EmptyDiff(t *testing.T) {
@@ -350,9 +353,14 @@ func TestGenerateMigration_ComplexRelationships(t *testing.T) {
 	sql := string(content)
 
 	// Verify the generated SQL
-	require.Contains(t, sql, "CREATE TABLE users (")
-	require.Contains(t, sql, "CREATE TABLE orders (")
-	require.Contains(t, sql, "CREATE TABLE order_items (")
-	require.Contains(t, sql, "CONSTRAINT fk_orders_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE")
-	require.Contains(t, sql, "CONSTRAINT fk_order_items_order_id_fkey FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE")
+	require.Contains(t, sql, "CREATE TABLE \"users\" (")
+	require.Contains(t, sql, "CREATE TABLE \"orders\" (")
+	require.Contains(t, sql, "CREATE TABLE \"order_items\" (")
+	require.Contains(t, sql, "CONSTRAINT fk_orders_user_id_fkey")
+	require.Contains(t, sql, "FOREIGN KEY (\"user_id\")")
+	require.Contains(t, sql, "REFERENCES \"users\"(id)")
+	require.Contains(t, sql, "CONSTRAINT fk_order_items_order_id_fkey")
+	require.Contains(t, sql, "FOREIGN KEY (\"order_id\")")
+	require.Contains(t, sql, "REFERENCES \"orders\"(id)")
+	require.Contains(t, sql, "ON DELETE CASCADE")
 }

@@ -1,8 +1,9 @@
 package schema
 
 import (
-	GORMSchema "gorm.io/gorm/schema"
 	"sync"
+
+	GORMSchema "gorm.io/gorm/schema"
 )
 
 // Table represents a gorm model
@@ -29,7 +30,7 @@ func CreateTableFromModel(model interface{}) (*Table, error) {
 
 	for _, field := range modelSchema.Fields {
 		column := &Column{
-			field,
+			Field: field,
 		}
 		columns = append(columns, column)
 	}

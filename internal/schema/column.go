@@ -8,21 +8,21 @@ import (
 
 // Column represents a gorm field
 type Column struct {
-	*GORMSchema.Field
+	Field *GORMSchema.Field
 }
 
 func (c *Column) Type() string {
-	return string(c.DataType)
+	return string(c.Field.DataType)
 }
 
 func (c *Column) ColumnName() string {
-	return c.DBName
+	return c.Field.DBName
 }
 
 func (c *Column) ColumnBindNames() []string {
-	return c.BindNames
+	return c.Field.BindNames
 }
 
 func (c *Column) ColumnTag() reflect.StructTag {
-	return c.Tag
+	return c.Field.Tag
 }

@@ -8,12 +8,12 @@ import (
 
 // Table represents a gorm model
 type Table struct {
-	*GORMSchema.Schema
+	Schema  *GORMSchema.Schema
 	Columns []*Column
 }
 
 func (t *Table) TableName() string {
-	return t.Table
+	return t.Schema.Table
 }
 
 func (t *Table) TableColumns() []*Column {

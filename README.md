@@ -19,7 +19,7 @@ Automatically generate database migrations from your GORM models by comparing th
 ### 1. Install
 
 ```bash
-go install github.com/beesaferoot/gorm-schema/cmd/gorm-schema@latest
+go get -u github.com/beesaferoot/gorm-schema@latest
 ```
 
 ### 2. Set up environment

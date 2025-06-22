@@ -48,6 +48,7 @@ func TestNewModelParser(t *testing.T) {
 
 	if parser == nil {
 		t.Error("Expected parser to be created")
+		return
 	}
 
 	if len(parser.modelTypes) != 1 {

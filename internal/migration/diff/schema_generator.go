@@ -55,9 +55,9 @@ func GenerateMigration(modelType reflect.Type, name string) (string, error) {
 	downSQL := fmt.Sprintf("DROP TABLE %s;\n", strings.ToLower(modelType.Name()))
 
 	var content strings.Builder
-	content.WriteString(fmt.Sprintf("package migrations\n\n"))
+	content.WriteString("package migrations\n\n")
 	content.WriteString("import \"gorm.io/gorm\"\n\n")
-	content.WriteString(fmt.Sprintf("func Migrate(db *gorm.DB) error {\n"))
+	content.WriteString("func Migrate(db *gorm.DB) error {\n")
 	content.WriteString(fmt.Sprintf("\tif err := db.Exec(`%s`).Error; err != nil {\n", upSQL.String()))
 	content.WriteString("\t\treturn err\n")
 	content.WriteString("\t}\n\n")

@@ -17,10 +17,14 @@ func GenerateRegistryCmd() *cobra.Command {
 			outputPath, _ := cmd.Flags().GetString("output")
 
 			if modelsPath != "" {
-				os.Setenv("GORM_MODELS_PATH", modelsPath)
+				if err := os.Setenv("GORM_MODELS_PATH", modelsPath); err != nil {
+					return fmt.Errorf("failed to set GORM_MODELS_PATH: %v", err)
+				}
 			}
 			if outputPath != "" {
-				os.Setenv("GORM_MODELS_REGISTRY_FILE", outputPath)
+				if err := os.Setenv("GORM_MODELS_REGISTRY_FILE", outputPath); err != nil {
+					return fmt.Errorf("failed to set GORM_MODELS_REGISTRY_FILE: %v", err)
+				}
 			}
 
 			fmt.Println("Generating model registry...")

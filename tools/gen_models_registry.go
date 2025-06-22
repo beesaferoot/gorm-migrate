@@ -5,7 +5,6 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -31,7 +30,7 @@ func main() {
 
 	structs := []string{}
 
-	files, err := ioutil.ReadDir(modelsDir)
+	files, err := os.ReadDir(modelsDir)
 	if err != nil {
 		panic(err)
 	}
@@ -73,7 +72,7 @@ func main() {
 	}
 	b.WriteString("}\n")
 
-	err = ioutil.WriteFile(outputFile, []byte(b.String()), 0644)
+	err = os.WriteFile(outputFile, []byte(b.String()), 0644)
 	if err != nil {
 		panic(err)
 	}

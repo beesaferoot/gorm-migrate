@@ -33,20 +33,19 @@ func CreateCmd() *cobra.Command {
 import "gorm.io/gorm"
 
 func Migrate(db *gorm.DB) error {
-	if err := db.Exec(`+"`"+`CREATE TABLE example (
+	if err := db.Exec(` + "`" + `CREATE TABLE example (
 		id SERIAL PRIMARY KEY,
 		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-	)`+"`"+`).Error; err != nil {
+	)` + "`" + `).Error; err != nil {
 		return err
 	}
 
-	if err := db.Exec(`+"`"+`DROP TABLE example`+"`"+`).Error; err != nil {
+	if err := db.Exec(` + "`" + `DROP TABLE example` + "`" + `).Error; err != nil {
 		return err
 	}
 
 	return nil
-}
-`, name)
+}`)
 
 			filePath := filepath.Join(migrationsDir, filename)
 			if err := os.WriteFile(filePath, []byte(content), 0644); err != nil {

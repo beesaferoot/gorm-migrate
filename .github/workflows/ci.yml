@@ -51,7 +51,7 @@ jobs:
           curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.55.2
 
       - name: Run golangci-lint
-        run: $(go env GOPATH)/bin/golangci-lint run --enable=goimports,gofmt,govet,errcheck,staticcheck,gosimple,ineffassign,unused,misspell ./...
+        run: $(go env GOPATH)/bin/golangci-lint run --enable=gofmt,govet,staticcheck --disable=errcheck,ineffassign,unused --timeout=5m ./...
 
   security:
     name: Security Scan

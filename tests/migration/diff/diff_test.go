@@ -68,7 +68,11 @@ type TestTenant struct {
 func TestSchemaDiffWithModels(t *testing.T) {
 	// Use a file-based SQLite database for reliable schema persistence
 	dbPath := "test_diff.db"
-	defer os.Remove(dbPath)
+	defer func() {
+		if err := os.Remove(dbPath); err != nil {
+			t.Errorf("failed to remove test database: %v", err)
+		}
+	}()
 
 	db, err := gorm.Open(sqlite.Open(dbPath), &gorm.Config{})
 	require.NoError(t, err)

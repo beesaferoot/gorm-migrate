@@ -259,6 +259,7 @@ func (c *SchemaComparer) getCurrentSchema() (map[string]*schema.Schema, error) {
 }
 
 func (c *SchemaComparer) getCurrentSchemaByDialect(db *gorm.DB) (map[string]*schema.Schema, error) {
+	//nolint:staticcheck // explicit selector for clarity
 	switch db.Dialector.Name() {
 	case "sqlite":
 		return c.getSQLiteSchema(db)

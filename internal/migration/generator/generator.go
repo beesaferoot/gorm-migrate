@@ -591,7 +591,7 @@ func (g *Generator) generateModifyTableSQL(table diff.TableDiff) []string {
 		if col.DefaultValue != "" {
 			columnDef += fmt.Sprintf(" DEFAULT %v", col.DefaultValue)
 		}
-		statements = append(statements, fmt.Sprintf("ALTER TABLE %s ALTER COLUMN %s TYPE %s;", quoteIdentifier(table.Schema.Table), quoteIdentifier(col.DBName), sqlType))
+		statements = append(statements, fmt.Sprintf("ALTER TABLE %s ALTER COLUMN %s;", quoteIdentifier(table.Schema.Table), columnDef))
 	}
 
 	// Add foreign keys with proper formatting

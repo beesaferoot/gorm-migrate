@@ -16,7 +16,11 @@ import (
 func TestMigrationFile(t *testing.T) {
 	// Set test hook to use registry only
 	os.Setenv("TEST_MIGRATION_REGISTRY_ONLY", "1")
-	defer os.Unsetenv("TEST_MIGRATION_REGISTRY_ONLY")
+	defer func() {
+		if err := os.Unsetenv("TEST_MIGRATION_REGISTRY_ONLY"); err != nil {
+			t.Errorf("failed to unset TEST_MIGRATION_REGISTRY_ONLY: %v", err)
+		}
+	}()
 
 	migration.ResetMigrations()
 	// Create migration loader with template

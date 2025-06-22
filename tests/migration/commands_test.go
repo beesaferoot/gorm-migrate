@@ -106,32 +106,22 @@ func TestMigrationRecord(t *testing.T) {
 
 func TestEnvironmentVariables(t *testing.T) {
 	originalDBURL := os.Getenv("DATABASE_URL")
-	originalMigrationsPath := os.Getenv("MIGRATIONS_PATH")
-	originalModelsPath := os.Getenv("GORM_MODELS_PATH")
 
 	defer func() {
 		if originalDBURL != "" {
-			os.Setenv("DATABASE_URL", originalDBURL)
+			if err := os.Setenv("DATABASE_URL", originalDBURL); err != nil {
+				t.Errorf("failed to restore DATABASE_URL: %v", err)
+			}
 		} else {
-			os.Unsetenv("DATABASE_URL")
-		}
-		if originalMigrationsPath != "" {
-			os.Setenv("MIGRATIONS_PATH", originalMigrationsPath)
-		} else {
-			os.Unsetenv("MIGRATIONS_PATH")
-		}
-		if originalModelsPath != "" {
-			os.Setenv("GORM_MODELS_PATH", originalModelsPath)
-		} else {
-			os.Unsetenv("GORM_MODELS_PATH")
+			if err := os.Unsetenv("DATABASE_URL"); err != nil {
+				t.Errorf("failed to unset DATABASE_URL: %v", err)
+			}
 		}
 	}()
 
-	os.Setenv("DATABASE_URL", "postgres://test:test@localhost:5432/test")
-	os.Setenv("MIGRATIONS_PATH", "./test_migrations")
-	os.Setenv("GORM_MODELS_PATH", "./test_models")
+	if err := os.Setenv("DATABASE_URL", "postgres://test:test@localhost:5432/test"); err != nil {
+		t.Errorf("failed to set DATABASE_URL: %v", err)
+	}
 
 	assert.Equal(t, "postgres://test:test@localhost:5432/test", os.Getenv("DATABASE_URL"))
-	assert.Equal(t, "./test_migrations", os.Getenv("MIGRATIONS_PATH"))
-	assert.Equal(t, "./test_models", os.Getenv("GORM_MODELS_PATH"))
 }

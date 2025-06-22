@@ -26,43 +26,99 @@ go install github.com/yourusername/gorm-schema/cmd/gorm-schema@latest
 
 ```bash
 export DATABASE_URL="postgresql://user:pass@localhost:5432/your_db"
-export GORM_MODELS_PATH="./models"
 ```
 
-### 3. Generate model registry
+### 3. Create your migration binary
 
-```bash
-gorm-schema generate-registry
+Create `cmd/migration/main.go` in your project:
+
+```go
+package main
+
+import (
+    "reflect"
+    "your-project/models" // Import your models package
+    "github.com/spf13/cobra"
+    "gorm-schema/internal/migration"
+    "gorm-schema/internal/migration/commands"
+)
+
+// Simple registry implementation
+type MyModelRegistry struct{}
+
+func (r *MyModelRegistry) GetModelTypes() map[string]reflect.Type {
+    return models.ModelTypeRegistry // Your registry
+}
+
+func init() {
+    migration.GlobalModelRegistry = &MyModelRegistry{}
+}
+
+func main() {
+    rootCmd := &cobra.Command{
+        Use:   "migration",
+        Short: "Database Migration Tool",
+    }
+
+    rootCmd.AddCommand(
+        commands.InitCmd(),
+        commands.CreateCmd(),
+        commands.GenerateCmd(),
+        commands.UpCmd(),
+        commands.DownCmd(),
+        commands.StatusCmd(),
+        commands.HistoryCmd(),
+        commands.ValidateCmd(),
+    )
+
+    if err := rootCmd.Execute(); err != nil {
+        panic(err)
+    }
+}
 ```
 
-### 4. Initialize and generate migrations
+### 4. Create your model registry
+
+Create `models/models_registry.go` in your project:
+
+```go
+package models
+
+import "reflect"
+
+var ModelTypeRegistry = map[string]reflect.Type{
+    "User":    reflect.TypeOf(User{}),
+    "Post":    reflect.TypeOf(Post{}),
+    "Comment": reflect.TypeOf(Comment{}),
+    // Add all your models here
+}
+```
+
+### 5. Initialize and generate migrations
 
 ```bash
-gorm-schema init
-gorm-schema generate init_db
-gorm-schema up
+go run cmd/migration/main.go init
+go run cmd/migration/main.go generate init_db
+go run cmd/migration/main.go up
 ```
 
 ## Usage
 
 ```bash
-# Generate model registry from your models
-gorm-schema generate-registry
-
 # Initialize migration system
-gorm-schema init
+go run cmd/migration/main.go init
 
 # Generate migration from model changes
-gorm-schema generate <name>
+go run cmd/migration/main.go generate <name>
 
 # Apply migrations
-gorm-schema up
+go run cmd/migration/main.go up
 
 # Rollback last migration
-gorm-schema down
+go run cmd/migration/main.go down
 
 # Check status
-gorm-schema status
+go run cmd/migration/main.go status
 ```
 
 ## Example
@@ -94,11 +150,10 @@ CREATE UNIQUE INDEX idx_users_email ON users(email);
 
 ## Environment Variables
 
-| Variable           | Description                   | Required                     |
-| ------------------ | ----------------------------- | ---------------------------- |
-| `DATABASE_URL`     | PostgreSQL connection string  | Yes                          |
-| `GORM_MODELS_PATH` | Path to your models directory | Yes                          |
-| `MIGRATIONS_PATH`  | Path for migration files      | No (default: `./migrations`) |
+| Variable          | Description                  | Required                     |
+| ----------------- | ---------------------------- | ---------------------------- |
+| `DATABASE_URL`    | PostgreSQL connection string | Yes                          |
+| `MIGRATIONS_PATH` | Path for migration files     | No (default: `./migrations`) |
 
 ## Testing
 

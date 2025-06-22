@@ -27,7 +27,6 @@ func main() {
 		commands.StatusCmd(),
 		commands.HistoryCmd(),
 		commands.ValidateCmd(),
-		commands.GenerateRegistryCmd(),
 	)
 
 	if err := rootCmd.Execute(); err != nil {

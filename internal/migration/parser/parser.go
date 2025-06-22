@@ -8,7 +8,7 @@ import (
 	"gorm.io/gorm"
 	"gorm.io/gorm/schema"
 
-	models "gorm-schema/example/models"
+	"gorm-schema/internal/migration"
 )
 
 type ModelParser struct {
@@ -16,40 +16,22 @@ type ModelParser struct {
 	modelTypes map[string]reflect.Type
 }
 
-// Basic type mapping for Go types to GORM types
-var basicTypeMapping = map[string]reflect.Type{
-	"int":        reflect.TypeOf(0),
-	"int8":       reflect.TypeOf(int8(0)),
-	"int16":      reflect.TypeOf(int16(0)),
-	"int32":      reflect.TypeOf(int32(0)),
-	"int64":      reflect.TypeOf(int64(0)),
-	"uint":       reflect.TypeOf(uint(0)),
-	"uint8":      reflect.TypeOf(uint8(0)),
-	"uint16":     reflect.TypeOf(uint16(0)),
-	"uint32":     reflect.TypeOf(uint32(0)),
-	"uint64":     reflect.TypeOf(uint64(0)),
-	"float32":    reflect.TypeOf(float32(0)),
-	"float64":    reflect.TypeOf(float64(0)),
-	"string":     reflect.TypeOf(""),
-	"bool":       reflect.TypeOf(false),
-	"[]byte":     reflect.TypeOf([]byte{}),
-	"[]string":   reflect.TypeOf([]string{}),
-	"[]int":      reflect.TypeOf([]int{}),
-	"[]float64":  reflect.TypeOf([]float64{}),
-	"time.Time":  reflect.TypeOf(""), // Will be handled specially
-	"*time.Time": reflect.TypeOf(""), // Will be handled specially
-}
+func NewModelParser(db *gorm.DB) (*ModelParser, error) {
+	// Validate that user has provided a registry
+	if err := migration.ValidateRegistry(); err != nil {
+		return nil, err
+	}
 
-func NewModelParser(modelsPath string, db *gorm.DB) *ModelParser {
 	p := &ModelParser{
 		db:         db,
-		modelTypes: make(map[string]reflect.Type),
+		modelTypes: migration.GlobalModelRegistry.GetModelTypes(),
 	}
-	// Auto-register all model types from the registry
-	for name, typ := range models.ModelTypeRegistry {
-		p.modelTypes[name] = typ
+
+	if len(p.modelTypes) == 0 {
+		return nil, fmt.Errorf("no models found in registry")
 	}
-	return p
+
+	return p, nil
 }
 
 func (p *ModelParser) Parse() (map[string]*schema.Schema, error) {
@@ -193,11 +175,7 @@ func (p *ModelParser) isStructReferenceField(field *schema.Field) bool {
 		// Check if it's a direct struct (not embedded)
 		if field.FieldType.Kind() == reflect.Struct {
 			// Skip embedded structs that should be database columns
-			if field.FieldType.String() == "time.Time" {
-				return false
-			}
-			// This is likely a relationship struct, skip it
-			return true
+			return field.FieldType.String() == "time.Time"
 		}
 	}
 

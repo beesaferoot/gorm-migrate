@@ -1,6 +1,8 @@
 package migration
 
 import (
+	"fmt"
+	"reflect"
 	"sync"
 	"time"
 
@@ -133,4 +135,20 @@ func ResetMigrations() {
 	registryMutex.Lock()
 	defer registryMutex.Unlock()
 	globalMigrations = make([]*Migration, 0)
+}
+
+// ModelRegistry - users must implement this
+type ModelRegistry interface {
+	GetModelTypes() map[string]reflect.Type
+}
+
+// Global registry - users set this in their main.go
+var GlobalModelRegistry ModelRegistry
+
+// Validate that registry is provided
+func ValidateRegistry() error {
+	if GlobalModelRegistry == nil {
+		return fmt.Errorf("no model registry provided. Please implement migration.ModelRegistry and set it in your main.go")
+	}
+	return nil
 }

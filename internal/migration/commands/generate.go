@@ -2,7 +2,6 @@ package commands
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/spf13/cobra"
 
@@ -24,16 +23,11 @@ func GenerateCmd() *cobra.Command {
 				return err
 			}
 
-			modelsPath := os.Getenv("GORM_MODELS_PATH")
-			if modelsPath == "" {
-				return fmt.Errorf("GORM_MODELS_PATH environment variable not set")
+			parser, err := modelparser.NewModelParser(db)
+			if err != nil {
+				return fmt.Errorf("failed to create model parser: %v", err)
 			}
 
-			if _, err := os.Stat(modelsPath); os.IsNotExist(err) {
-				return fmt.Errorf("models directory does not exist: %s", modelsPath)
-			}
-
-			parser := modelparser.NewModelParser(modelsPath, db)
 			modelSchemas, err := parser.Parse()
 			if err != nil {
 				return fmt.Errorf("failed to parse models: %v", err)

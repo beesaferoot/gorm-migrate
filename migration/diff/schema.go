@@ -560,24 +560,24 @@ func (c *SchemaComparer) compareTable(current, target *schema.Schema) TableDiff 
 	// (do not populate diff.ForeignKeysToAdd or diff.ForeignKeysToDrop)
 
 	// Indexes (by name)
-	currentIndexes := make(map[string]schema.Index)
+	currentIndexes := make(map[string]*schema.Index)
 	for _, idx := range current.ParseIndexes() {
 		currentIndexes[idx.Name] = idx
 	}
-	targetIndexes := make(map[string]schema.Index)
+	targetIndexes := make(map[string]*schema.Index)
 	for _, idx := range target.ParseIndexes() {
 		targetIndexes[idx.Name] = idx
 	}
 	for name, targetIdx := range targetIndexes {
 		if currentIdx, exists := currentIndexes[name]; !exists {
-			diff.IndexesToAdd = append(diff.IndexesToAdd, &targetIdx)
+			diff.IndexesToAdd = append(diff.IndexesToAdd, targetIdx)
 		} else if !indexesEqual(currentIdx, targetIdx) {
-			diff.IndexesToModify = append(diff.IndexesToModify, &targetIdx)
+			diff.IndexesToModify = append(diff.IndexesToModify, targetIdx)
 		}
 	}
 	for name, currentIdx := range currentIndexes {
 		if _, exists := targetIndexes[name]; !exists {
-			diff.IndexesToDrop = append(diff.IndexesToDrop, &currentIdx)
+			diff.IndexesToDrop = append(diff.IndexesToDrop, currentIdx)
 		}
 	}
 
@@ -731,7 +731,7 @@ func isRelationshipField(field *schema.Field) bool {
 }
 
 // indexesEqual compares two schema.Index for relevant diff purposes
-func indexesEqual(a, b schema.Index) bool {
+func indexesEqual(a, b *schema.Index) bool {
 	if a.Name != b.Name || a.Option != b.Option || len(a.Fields) != len(b.Fields) {
 		return false
 	}

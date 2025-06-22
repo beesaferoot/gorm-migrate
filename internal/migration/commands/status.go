@@ -5,7 +5,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"gorm-schema/internal/migration"
+	"github.com/beesaferoot/gorm-schema/internal/migration"
 )
 
 func StatusCmd() *cobra.Command {

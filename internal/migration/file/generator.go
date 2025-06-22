@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"gorm-schema/internal/migration"
+	"github.com/beesaferoot/gorm-schema/internal/migration"
 
 	"gorm.io/gorm"
 )

@@ -7,7 +7,7 @@ import (
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 
-	"gorm-schema/internal/migration"
+	"github.com/beesaferoot/gorm-schema/internal/migration"
 )
 
 // TestModel is a simple test model

@@ -9,7 +9,7 @@ import (
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 
-	"gorm-schema/internal/migration/file"
+	"github.com/beesaferoot/gorm-schema/internal/migration/file"
 )
 
 func getDB() (*gorm.DB, error) {

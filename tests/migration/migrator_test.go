@@ -1,8 +1,8 @@
 package migration_test
 
 import (
-	"gorm-schema/internal/migration/driver"
-	"gorm-schema/internal/migration"
+	"github.com/beesaferoot/gorm-schema/internal/migration"
+	"github.com/beesaferoot/gorm-schema/internal/migration/driver"
 	"testing"
 	"time"
 

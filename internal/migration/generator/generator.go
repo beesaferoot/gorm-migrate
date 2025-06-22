@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"gorm-schema/internal/migration/diff"
+	"github.com/beesaferoot/gorm-schema/internal/migration/diff"
 )
 
 // Generator helps create new migration files

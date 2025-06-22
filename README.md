@@ -19,7 +19,7 @@ Automatically generate database migrations from your GORM models by comparing th
 ### 1. Install
 
 ```bash
-go install github.com/yourusername/gorm-schema/cmd/gorm-schema@latest
+go install github.com/beesaferoot/gorm-schema/cmd/gorm-schema@latest
 ```
 
 ### 2. Set up environment
@@ -39,8 +39,8 @@ import (
     "reflect"
     "your-project/models" // Import your models package
     "github.com/spf13/cobra"
-    "gorm-schema/internal/migration"
-    "gorm-schema/internal/migration/commands"
+    "github.com/beesaferoot/gorm-schema/internal/migration"
+    "github.com/beesaferoot/gorm-schema/internal/migration/commands"
 )
 
 // Simple registry implementation
@@ -139,7 +139,7 @@ Generated migration:
 package migrations
 
 import (
-    "gorm-schema/internal/migration"
+    "github.com/beesaferoot/gorm-schema/internal/migration"
     "gorm.io/gorm"
     "time"
 )

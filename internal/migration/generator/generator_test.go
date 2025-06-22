@@ -1,7 +1,7 @@
 package generator
 
 import (
-	"gorm-schema/internal/migration/diff"
+	"github.com/beesaferoot/gorm-schema/internal/migration/diff"
 	"os"
 	"strings"
 	"testing"

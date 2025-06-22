@@ -39,6 +39,7 @@ import (
     "reflect"
     "your-project/models" // Import your models package
     "github.com/spf13/cobra"
+    "github.com/joho/godotenv"
     "github.com/beesaferoot/gorm-schema/migration"
     "github.com/beesaferoot/gorm-schema/migration/commands"
 )
@@ -55,6 +56,7 @@ func init() {
 }
 
 func main() {
+    _ = godotenv.Load() // optionally load environment file
     rootCmd := &cobra.Command{
         Use:   "migration",
         Short: "Database Migration Tool",

@@ -8,6 +8,7 @@ import (
 	"github.com/beesaferoot/gorm-schema/migration/commands"
 
 	"github.com/spf13/cobra"
+	"github.com/joho/godotenv"
 )
 
 // Simple registry implementation
@@ -22,6 +23,7 @@ func init() {
 }
 
 func main() {
+	_ = godotenv.Load() // optionally load environment file
 	rootCmd := &cobra.Command{
 		Use:   "migration",
 		Short: "Database Migration Tool",

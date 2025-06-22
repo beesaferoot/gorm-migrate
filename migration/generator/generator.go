@@ -37,21 +37,16 @@ func (g *Generator) CreateMigration(name string) error {
 
 	// Guard: do not create a migration if there are no changes
 	hasChanges := false
-	fmt.Printf("[DEBUG] TablesToCreate: %d, TablesToDrop: %d, TablesToRename: %d\n",
-		len(g.SchemaDiff.TablesToCreate), len(g.SchemaDiff.TablesToDrop), len(g.SchemaDiff.TablesToRename))
 	if len(g.SchemaDiff.TablesToCreate) > 0 || len(g.SchemaDiff.TablesToDrop) > 0 || len(g.SchemaDiff.TablesToRename) > 0 {
 		hasChanges = true
-		fmt.Printf("[DEBUG] Found changes in TablesToCreate/TablesToDrop/TablesToRename\n")
 	}
-	for i, tableMod := range g.SchemaDiff.TablesToModify {
-		fmt.Printf("[DEBUG] TableMod[%d]: %+v, IsEmpty: %v\n", i, tableMod, tableMod.IsEmpty())
+	for _, tableMod := range g.SchemaDiff.TablesToModify {
 		if !tableMod.IsEmpty() {
 			hasChanges = true
 			break
 		}
 	}
 	if !hasChanges {
-		fmt.Printf("[DEBUG] No schema changes detected. SchemaDiff: %+v\n", g.SchemaDiff)
 		return fmt.Errorf("no schema changes detected")
 	}
 

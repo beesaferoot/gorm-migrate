@@ -39,8 +39,8 @@ import (
     "reflect"
     "your-project/models" // Import your models package
     "github.com/spf13/cobra"
-    "github.com/beesaferoot/gorm-schema/internal/migration"
-    "github.com/beesaferoot/gorm-schema/internal/migration/commands"
+    "github.com/beesaferoot/gorm-schema/migration"
+    "github.com/beesaferoot/gorm-schema/migration/commands"
 )
 
 // Simple registry implementation
@@ -139,7 +139,7 @@ Generated migration:
 package migrations
 
 import (
-    "github.com/beesaferoot/gorm-schema/internal/migration"
+    "github.com/beesaferoot/gorm-schema/migration"
     "gorm.io/gorm"
     "time"
 )

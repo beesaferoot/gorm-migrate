@@ -36,10 +36,7 @@ func (g *Generator) CreateMigration(name string) error {
 	}
 
 	// Guard: do not create a migration if there are no changes
-	hasChanges := false
-	if len(g.SchemaDiff.TablesToCreate) > 0 || len(g.SchemaDiff.TablesToDrop) > 0 || len(g.SchemaDiff.TablesToRename) > 0 {
-		hasChanges = true
-	}
+	hasChanges := len(g.SchemaDiff.TablesToCreate) > 0 || len(g.SchemaDiff.TablesToDrop) > 0 || len(g.SchemaDiff.TablesToRename) > 0 
 	for _, tableMod := range g.SchemaDiff.TablesToModify {
 		if !tableMod.IsEmpty() {
 			hasChanges = true

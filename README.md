@@ -135,17 +135,44 @@ type User struct {
 
 Generated migration:
 
-```sql
-CREATE TABLE users (
-    id BIGSERIAL PRIMARY KEY,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    deleted_at TIMESTAMP,
-    name VARCHAR(255),
-    email VARCHAR(255)
-);
+```go
+package migrations
 
-CREATE UNIQUE INDEX idx_users_email ON users(email);
+import (
+    "gorm-schema/internal/migration"
+    "gorm.io/gorm"
+    "time"
+)
+
+func init() {
+    migration.RegisterMigration(&migration.Migration{
+        Version:   "20250620232804",
+        Name:      "init_db",
+        CreatedAt: time.Now(),
+        Up: func(db *gorm.DB) error {
+            if err := db.Exec(`CREATE TABLE "users" (
+    id BIGSERIAL PRIMARY KEY,
+    created_at timestamp,
+    updated_at timestamp,
+    deleted_at timestamp,
+    name varchar(255),
+    email varchar(255)
+);`).Error; err != nil {
+                return err
+            }
+            if err := db.Exec(`CREATE UNIQUE INDEX idx_users_email ON "users"(email);`).Error; err != nil {
+                return err
+            }
+            return nil
+        },
+        Down: func(db *gorm.DB) error {
+            if err := db.Exec(`DROP TABLE IF EXISTS "users";`).Error; err != nil {
+                return err
+            }
+            return nil
+        },
+    })
+}
 ```
 
 ## Environment Variables

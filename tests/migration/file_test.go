@@ -9,8 +9,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 
-	"github.com/beesaferoot/gorm-schema/internal/migration"
-	"github.com/beesaferoot/gorm-schema/internal/migration/file"
+	"github.com/beesaferoot/gorm-schema/migration"
+	"github.com/beesaferoot/gorm-schema/migration/file"
 )
 
 func TestMigrationFile(t *testing.T) {

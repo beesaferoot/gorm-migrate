@@ -6,7 +6,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/beesaferoot/gorm-schema/internal/migration"
+	"github.com/beesaferoot/gorm-schema/migration"
 )
 
 func UpCmd() *cobra.Command {

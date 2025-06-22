@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm/schema"
 
-	"github.com/beesaferoot/gorm-schema/internal/migration/diff"
+	"github.com/beesaferoot/gorm-schema/migration/diff"
 )
 
 

@@ -1,10 +1,11 @@
 package main
 
 import (
-	"github.com/beesaferoot/gorm-schema/example/user-project/models" // User's models package - CHANGE THIS
-	"github.com/beesaferoot/gorm-schema/internal/migration"
-	"github.com/beesaferoot/gorm-schema/internal/migration/commands"
 	"reflect"
+
+	"github.com/beesaferoot/gorm-schema/example/user-project/models" // User's models package - CHANGE THIS
+	"github.com/beesaferoot/gorm-schema/migration"
+	"github.com/beesaferoot/gorm-schema/migration/commands"
 
 	"github.com/spf13/cobra"
 )

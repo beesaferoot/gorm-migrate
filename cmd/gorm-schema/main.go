@@ -7,7 +7,7 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/spf13/cobra"
 
-	"github.com/beesaferoot/gorm-schema/internal/migration/commands"
+	"github.com/beesaferoot/gorm-schema/migration/commands"
 )
 
 func main() {

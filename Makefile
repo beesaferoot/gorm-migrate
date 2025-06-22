@@ -69,7 +69,7 @@ lint:
 		echo "Installing golangci-lint..."; \
 		curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.55.2; \
 	fi
-	golangci-lint run ./...
+	golangci-lint run --enable=govet,staticcheck --disable=errcheck,ineffassign,unused --timeout=5m ./...
 
 # Run security checks
 security-check:

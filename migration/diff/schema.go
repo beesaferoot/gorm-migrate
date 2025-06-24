@@ -327,7 +327,6 @@ func (c *SchemaComparer) CompareTable(current, target *schema.Schema) TableDiff 
 
 // compareTable compares two table schemas and returns a TableDiff using GORM types
 func (c *SchemaComparer) compareTable(current, target *schema.Schema) TableDiff {
-	fmt.Printf("[DEBUG] diff for %s\n", target.Table)
 	diff := TableDiff{
 		Schema:            target,
 		FieldsToAdd:       make([]*schema.Field, 0),

@@ -1,11 +1,11 @@
 package generator
 
 import (
-	"github.com/beesaferoot/gorm-schema/migration/diff"
 	"os"
 	"strings"
 	"testing"
 
+	"github.com/beesaferoot/gorm-schema/migration/diff"
 	"gorm.io/gorm/schema"
 
 	"github.com/stretchr/testify/require"
@@ -363,4 +363,105 @@ func TestGenerateMigration_ComplexRelationships(t *testing.T) {
 	require.Contains(t, sql, "FOREIGN KEY (\"order_id\")")
 	require.Contains(t, sql, "REFERENCES \"orders\"(id)")
 	require.Contains(t, sql, "ON DELETE CASCADE")
+}
+
+func createTestSchema(tableName string, fields []*schema.Field) *schema.Schema {
+	return &schema.Schema{
+		Name:   tableName,
+		Table:  tableName,
+		Fields: fields,
+	}
+}
+
+func TestDownMigrationGeneration(t *testing.T) {
+	t.Run("Add field generates DROP COLUMN in Down", func(t *testing.T) {
+		currentSchema := createTestSchema("users", []*schema.Field{
+			{Name: "id", DBName: "id", DataType: "uint", PrimaryKey: true, AutoIncrement: true},
+			{Name: "name", DBName: "name", DataType: "string"},
+		})
+		targetSchema := createTestSchema("users", []*schema.Field{
+			{Name: "id", DBName: "id", DataType: "uint", PrimaryKey: true, AutoIncrement: true},
+			{Name: "name", DBName: "name", DataType: "string"},
+			{Name: "email", DBName: "email", DataType: "string"},
+		})
+		comparer := diff.NewSchemaComparer(nil)
+		diffResult := comparer.CompareTable(currentSchema, targetSchema)
+		// Debug output for diagnosis
+		t.Logf("FieldsToAdd: %+v", diffResult.FieldsToAdd)
+		t.Logf("FieldsToDrop: %+v", diffResult.FieldsToDrop)
+		t.Logf("FieldsToModify: %+v", diffResult.FieldsToModify)
+		g := &Generator{SchemaDiff: &diff.SchemaDiff{TablesToModify: []diff.TableDiff{diffResult}}}
+		upSQL := g.generateModifyTableSQL(diffResult)
+		fullUpSQL := strings.Join(upSQL, " ")
+		downSQL := g.generateDownSQL()
+		t.Logf("Up SQL: %s", fullUpSQL)
+		t.Logf("Down SQL: %s", downSQL)
+		if !strings.Contains(fullUpSQL, "ADD COLUMN \"email\"") {
+			t.Errorf("Up migration should add column email")
+		}
+		if !strings.Contains(downSQL, "DROP COLUMN \"email\"") {
+			t.Errorf("Down migration should drop column email")
+		}
+	})
+
+	t.Run("Remove field generates ADD COLUMN in Down", func(t *testing.T) {
+		currentSchema := createTestSchema("users", []*schema.Field{
+			{Name: "id", DBName: "id", DataType: "uint", PrimaryKey: true, AutoIncrement: true},
+			{Name: "name", DBName: "name", DataType: "string"},
+			{Name: "email", DBName: "email", DataType: "string"},
+		})
+		targetSchema := createTestSchema("users", []*schema.Field{
+			{Name: "id", DBName: "id", DataType: "uint", PrimaryKey: true, AutoIncrement: true},
+			{Name: "name", DBName: "name", DataType: "string"},
+		})
+		comparer := diff.NewSchemaComparer(nil)
+		diffResult := comparer.CompareTable(currentSchema, targetSchema)
+		// Debug output for diagnosis
+		t.Logf("FieldsToAdd: %+v", diffResult.FieldsToAdd)
+		t.Logf("FieldsToDrop: %+v", diffResult.FieldsToDrop)
+		t.Logf("FieldsToModify: %+v", diffResult.FieldsToModify)
+		g := &Generator{SchemaDiff: &diff.SchemaDiff{TablesToModify: []diff.TableDiff{diffResult}}}
+		upSQL := g.generateModifyTableSQL(diffResult)
+		fullUpSQL := strings.Join(upSQL, " ")
+		downSQL := g.generateDownSQL()
+		t.Logf("Up SQL: %s", fullUpSQL)
+		t.Logf("Down SQL: %s", downSQL)
+		if !strings.Contains(fullUpSQL, "DROP COLUMN \"email\"") {
+			t.Errorf("Up migration should drop column email")
+		}
+		if !strings.Contains(downSQL, "ADD COLUMN \"email\"") {
+			t.Errorf("Down migration should add column email")
+		}
+	})
+
+	t.Run("Modify field generates comment in Down", func(t *testing.T) {
+		currentSchema := createTestSchema("users", []*schema.Field{
+			{Name: "id", DBName: "id", DataType: "uint", PrimaryKey: true, AutoIncrement: true},
+			{Name: "name", DBName: "name", DataType: "string"},
+			{Name: "age", DBName: "age", DataType: "int"},
+		})
+		targetSchema := createTestSchema("users", []*schema.Field{
+			{Name: "id", DBName: "id", DataType: "uint", PrimaryKey: true, AutoIncrement: true},
+			{Name: "name", DBName: "name", DataType: "string"},
+			{Name: "age", DBName: "age", DataType: "string"}, // type changed
+		})
+		comparer := diff.NewSchemaComparer(nil)
+		diffResult := comparer.CompareTable(currentSchema, targetSchema)
+		// Debug output for diagnosis
+		t.Logf("FieldsToAdd: %+v", diffResult.FieldsToAdd)
+		t.Logf("FieldsToDrop: %+v", diffResult.FieldsToDrop)
+		t.Logf("FieldsToModify: %+v", diffResult.FieldsToModify)
+		g := &Generator{SchemaDiff: &diff.SchemaDiff{TablesToModify: []diff.TableDiff{diffResult}}}
+		upSQL := g.generateModifyTableSQL(diffResult)
+		fullUpSQL := strings.Join(upSQL, " ")
+		downSQL := g.generateDownSQL()
+		t.Logf("Up SQL: %s", fullUpSQL)
+		t.Logf("Down SQL: %s", downSQL)
+		if !strings.Contains(fullUpSQL, "ALTER COLUMN \"age\"") {
+			t.Errorf("Up migration should alter column age")
+		}
+		if !strings.Contains(downSQL, "-- TODO: Reverse modification for column age") {
+			t.Errorf("Down migration should include a comment for manual intervention")
+		}
+	})
 }

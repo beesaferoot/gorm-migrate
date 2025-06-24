@@ -36,7 +36,7 @@ func (g *Generator) CreateMigration(name string) error {
 	}
 
 	// Guard: do not create a migration if there are no changes
-	hasChanges := len(g.SchemaDiff.TablesToCreate) > 0 || len(g.SchemaDiff.TablesToDrop) > 0 || len(g.SchemaDiff.TablesToRename) > 0 
+	hasChanges := len(g.SchemaDiff.TablesToCreate) > 0 || len(g.SchemaDiff.TablesToDrop) > 0 || len(g.SchemaDiff.TablesToRename) > 0
 	for _, tableMod := range g.SchemaDiff.TablesToModify {
 		if !tableMod.IsEmpty() {
 			hasChanges = true
@@ -449,17 +449,44 @@ func (g *Generator) generateDownSQL() string {
 		}
 	}
 
-	// Topologically sort tables to drop in correct dependency order
-	// For dropping, we need reverse topological order (children before parents)
+	// Reverse column changes for modified tables
+	for _, table := range g.SchemaDiff.TablesToModify {
+		tableName := quoteIdentifier(table.Schema.Table)
+		// Reverse added columns: drop them
+		for _, col := range table.FieldsToAdd {
+			statements = append(statements, fmt.Sprintf("ALTER TABLE %s DROP COLUMN %s;", tableName, quoteIdentifier(col.DBName)))
+		}
+		// Reverse dropped columns: add them back (best guess type)
+		for _, col := range table.FieldsToDrop {
+			// Try to guess the SQL type, fallback to comment if unknown
+			sqlType := mapGoTypeToSQLType(string(col.DataType))
+			if sqlType == "" {
+				statements = append(statements, fmt.Sprintf("-- TODO: Could not determine type for column %s, please edit manually", col.DBName))
+				continue
+			}
+			colDef := fmt.Sprintf("%s %s", quoteIdentifier(col.DBName), sqlType)
+			if col.NotNull {
+				colDef += " NOT NULL"
+			}
+			if col.DefaultValue != "" {
+				colDef += fmt.Sprintf(" DEFAULT %v", col.DefaultValue)
+			}
+			statements = append(statements, fmt.Sprintf("ALTER TABLE %s ADD COLUMN %s;", tableName, colDef))
+		}
+		// Reverse modified columns: add a comment (manual intervention needed)
+		for _, col := range table.FieldsToModify {
+			statements = append(statements, fmt.Sprintf("-- TODO: Reverse modification for column %s in table %s manually", col.DBName, table.Schema.Table))
+		}
+	}
+
+	// Drop tables created in Up
 	tablesToDrop, err := topoSortTables(g.SchemaDiff.TablesToCreate)
 	if err != nil {
-		// If topological sort fails, fall back to reverse order
 		for i := len(g.SchemaDiff.TablesToCreate) - 1; i >= 0; i-- {
 			table := g.SchemaDiff.TablesToCreate[i]
 			statements = append(statements, fmt.Sprintf("DROP TABLE IF EXISTS %s;", quoteIdentifier(table.Schema.Table)))
 		}
 	} else {
-		// Drop tables in reverse topological order (children first, then parents)
 		for i := len(tablesToDrop) - 1; i >= 0; i-- {
 			table := tablesToDrop[i]
 			statements = append(statements, fmt.Sprintf("DROP TABLE IF EXISTS %s;", quoteIdentifier(table.Schema.Table)))

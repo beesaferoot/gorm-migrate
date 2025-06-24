@@ -1,13 +1,11 @@
 package models
 
-import "reflect"
-
-var ModelTypeRegistry = map[string]reflect.Type{
-	"Apartment": reflect.TypeOf(Apartment{}),
-	"ApartmentBookingPrice": reflect.TypeOf(ApartmentBookingPrice{}),
-	"ApartmentContract": reflect.TypeOf(ApartmentContract{}),
-	"ApartmentHighlight": reflect.TypeOf(ApartmentHighlight{}),
-	"Estate": reflect.TypeOf(Estate{}),
-	"Tenant": reflect.TypeOf(Tenant{}),
-	"User": reflect.TypeOf(User{}),
-}
+var ModelTypeRegistry = map[string]interface{}{
+	"Apartment": Apartment{},
+	"ApartmentBookingPrice": ApartmentBookingPrice{},
+	"ApartmentContract": ApartmentContract{},
+	"ApartmentHighlight": ApartmentHighlight{},
+	"Estate": Estate{},
+	"Tenant": Tenant{},
+	"User": User{},
+}	

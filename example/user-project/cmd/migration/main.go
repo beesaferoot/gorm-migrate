@@ -1,7 +1,6 @@
 package main
 
 import (
-	"reflect"
 
 	"github.com/beesaferoot/gorm-schema/example/user-project/models" // User's models package - CHANGE THIS
 	"github.com/beesaferoot/gorm-schema/migration"
@@ -14,7 +13,7 @@ import (
 // Simple registry implementation
 type MyModelRegistry struct{}
 
-func (r *MyModelRegistry) GetModelTypes() map[string]reflect.Type {
+func (r *MyModelRegistry) GetModels() map[string]interface{} {
 	return models.ModelTypeRegistry // User's registry
 }
 

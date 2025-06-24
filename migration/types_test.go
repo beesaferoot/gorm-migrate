@@ -14,9 +14,9 @@ type TestModel struct {
 // MockModelRegistry implements ModelRegistry for testing
 type MockModelRegistry struct{}
 
-func (r *MockModelRegistry) GetModelTypes() map[string]reflect.Type {
-	return map[string]reflect.Type{
-		"TestModel": reflect.TypeOf(TestModel{}),
+func (r *MockModelRegistry) GetModels() map[string]interface{} {
+	return map[string]interface{}{
+		"TestModel": TestModel{},
 	}
 }
 
@@ -38,7 +38,7 @@ func TestValidateRegistry(t *testing.T) {
 
 func TestModelRegistry(t *testing.T) {
 	registry := &MockModelRegistry{}
-	modelTypes := registry.GetModelTypes()
+	modelTypes := registry.GetModels()
 
 	if len(modelTypes) != 1 {
 		t.Errorf("Expected 1 model type, got %d", len(modelTypes))

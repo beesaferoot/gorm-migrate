@@ -1,7 +1,6 @@
 package parser
 
 import (
-	"reflect"
 	"testing"
 
 	"gorm.io/driver/sqlite"
@@ -19,9 +18,9 @@ type TestModel struct {
 // MockModelRegistry implements ModelRegistry for testing
 type MockModelRegistry struct{}
 
-func (r *MockModelRegistry) GetModelTypes() map[string]reflect.Type {
-	return map[string]reflect.Type{
-		"TestModel": reflect.TypeOf(TestModel{}),
+func (r *MockModelRegistry) GetModels() map[string]interface{} {
+	return map[string]interface{}{
+		"TestModel": TestModel{},
 	}
 }
 
@@ -51,11 +50,11 @@ func TestNewModelParser(t *testing.T) {
 		return
 	}
 
-	if len(parser.modelTypes) != 1 {
-		t.Errorf("Expected 1 model type, got %d", len(parser.modelTypes))
+	if len(parser.models) != 1 {
+		t.Errorf("Expected 1 model type, got %d", len(parser.models))
 	}
 
-	if _, exists := parser.modelTypes["TestModel"]; !exists {
+	if _, exists := parser.models["TestModel"]; !exists {
 		t.Error("Expected TestModel to be in parser")
 	}
 }

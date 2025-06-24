@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
+	"unicode"
 
 	"gorm.io/gorm"
 	"gorm.io/gorm/schema"
@@ -20,33 +21,40 @@ func (c *SchemaComparer) GetCurrentSchema() (map[string]*schema.Schema, error) {
 // GetModelSchemas gets the schema from the provided models
 func (c *SchemaComparer) GetModelSchemas(models ...interface{}) (map[string]*schema.Schema, error) {
 	modelSchemas := make(map[string]*schema.Schema)
-	// First pass: parse all models and collect their schemas
 	for _, model := range models {
 		stmt := &gorm.Statement{DB: c.db}
 		if err := stmt.Parse(model); err != nil {
 			return nil, err
 		}
 		s := stmt.Schema
-		// Only include fields that map to DB columns
 		columns := make([]*schema.Field, 0)
-		seenColumns := make(map[string]bool) // Track seen column names to handle embedded structs
+		seenColumns := make(map[string]bool)
 		for _, field := range s.Fields {
 			if field.DBName == "" {
-				continue // skip non-column fields
+				continue
 			}
-			// Skip if we've already seen this column name (from an embedded struct)
 			if seenColumns[field.DBName] {
 				continue
 			}
 			seenColumns[field.DBName] = true
 			columns = append(columns, field)
 		}
-		// Create a shallow copy of schema with only column fields
+		// If the model embeds gorm.Model, ensure default columns are present
+		if embedsGormModel(reflect.TypeOf(model)) {
+			for _, def := range gormDefaultFields() {
+				if !seenColumns[def.DBName] {
+					// Mark default GORM fields to be ignored in migrations
+					def.IgnoreMigration = true
+					columns = append(columns, def)
+					seenColumns[def.DBName] = true
+				}
+			}
+		}
 		copySchema := schema.Schema{
 			Name:          s.Name,
 			Table:         s.Table,
 			Fields:        columns,
-			Relationships: schema.Relationships{}, // Create new empty relationships
+			Relationships: schema.Relationships{},
 		}
 		modelSchemas[s.Table] = &copySchema
 	}
@@ -189,10 +197,8 @@ func (c *SchemaComparer) getCurrentSchema() (map[string]*schema.Schema, error) {
 		return nil, fmt.Errorf("invalid db instance")
 	}
 
-	// Use GORM's Migrator to get the current database schema
 	migrator := db.Migrator()
 
-	// Get all tables from the database
 	tables, err := migrator.GetTables()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get tables: %v", err)
@@ -206,33 +212,13 @@ func (c *SchemaComparer) getCurrentSchema() (map[string]*schema.Schema, error) {
 			continue
 		}
 
-		// Create a temporary model instance to get the schema
-		// We'll use a generic struct that GORM can introspect
-		tempModel := &struct {
-			ID uint `gorm:"primaryKey"`
-		}{}
-
-		// Set the table name for this temporary model
-		stmt := &gorm.Statement{DB: db, Table: tableName}
-		if err := stmt.Parse(tempModel); err != nil {
-			// If parsing fails, skip this table
-			continue
-		}
-
-		tableSchema := stmt.Schema
-		if tableSchema == nil {
-			continue
-		}
-
 		columns, err := migrator.ColumnTypes(tableName)
 		if err != nil {
 			continue
 		}
 
-		// Build fields from column information
 		var fields []*schema.Field
 		for _, col := range columns {
-			// Get column properties with proper error handling
 			isPrimaryKey, _ := col.PrimaryKey()
 			isAutoIncrement, _ := col.AutoIncrement()
 			defaultValue, _ := col.DefaultValue()
@@ -241,210 +227,35 @@ func (c *SchemaComparer) getCurrentSchema() (map[string]*schema.Schema, error) {
 			nullable, _ := col.Nullable()
 
 			field := &schema.Field{
-				Name:          col.Name(),
+				Name:          toExportedFieldName(col.Name()),
 				DBName:        col.Name(),
 				DataType:      schema.DataType(col.DatabaseTypeName()),
-				NotNull:       !nullable, // Nullable() returns true if nullable, so we invert it
+				NotNull:       !nullable,
 				PrimaryKey:    isPrimaryKey,
 				AutoIncrement: isAutoIncrement,
 				DefaultValue:  defaultValue,
 				Size:          int(length),
 				Precision:     int(precision),
 				Scale:         int(scale),
-				// Set proper metadata to match GORM expectations
-				Creatable: true,
-				Updatable: true,
-				Readable:  true,
+				Creatable:     true,
+				Updatable:     true,
+				Readable:      true,
 			}
 			fields = append(fields, field)
 		}
 
-		// Build schema.Schema
 		parsedSchema := &schema.Schema{
 			Name:          toExportedFieldName(tableName),
 			Table:         tableName,
 			Fields:        fields,
 			Relationships: schema.Relationships{},
 		}
+
 		schemas[tableName] = parsedSchema
 	}
 
 	return schemas, nil
 }
-
-// func (c *SchemaComparer) getCurrentSchemaByDialect(db *gorm.DB) (map[string]*schema.Schema, error) {
-// 	//nolint:staticcheck // explicit selector for clarity
-// 	switch db.Dialector.Name() {
-// 	case "sqlite":
-// 		return c.getSQLiteSchema(db)
-// 	case "postgres":
-// 		return c.getPostgresSchema(db)
-// 	default:
-// 		return nil, fmt.Errorf("getCurrentSchema only implemented for sqlite and postgres")
-// 	}
-// }
-
-// func (c *SchemaComparer) getPostgresSchema(db *gorm.DB) (map[string]*schema.Schema, error) {
-// 	tables := make(map[string]*schema.Schema)
-
-// 	// Get all tables
-// 	rows, err := db.Raw(`
-// 		SELECT table_name 
-// 		FROM information_schema.tables 
-// 		WHERE table_schema = 'public' 
-// 		AND table_type = 'BASE TABLE'
-// 	`).Rows()
-// 	if err != nil {
-// 		return nil, err
-// 	}
-// 	defer rows.Close()
-
-// 	for rows.Next() {
-// 		var tableName string
-// 		if err := rows.Scan(&tableName); err != nil {
-// 			return nil, err
-// 		}
-
-// 		// Get column info with correct primary key detection
-// 		colRows, err := db.Raw(`
-// 			SELECT 
-// 				c.column_name, 
-// 				c.data_type, 
-// 				c.is_nullable, 
-// 				c.column_default,
-// 				(CASE WHEN kcu.column_name IS NOT NULL THEN true ELSE false END) as is_primary_key,
-// 				(CASE WHEN c.column_default LIKE 'nextval%' OR c.column_default LIKE 'gen_random_uuid%' THEN true ELSE false END) as is_auto_increment
-// 			FROM information_schema.columns c
-// 			LEFT JOIN information_schema.table_constraints tc 
-// 				ON tc.table_name = c.table_name 
-// 				AND tc.constraint_type = 'PRIMARY KEY'
-// 				AND tc.table_schema = c.table_schema
-// 			LEFT JOIN information_schema.key_column_usage kcu 
-// 				ON kcu.constraint_name = tc.constraint_name 
-// 				AND kcu.column_name = c.column_name
-// 				AND kcu.table_name = c.table_name
-// 				AND kcu.table_schema = c.table_schema
-// 			WHERE c.table_name = ? AND c.table_schema = 'public'
-// 			ORDER BY c.ordinal_position
-// 		`, tableName).Rows()
-// 		if err != nil {
-// 			return nil, err
-// 		}
-
-// 		fields := make([]*schema.Field, 0)
-// 		for colRows.Next() {
-// 			var (
-// 				name       string
-// 				typeStr    string
-// 				nullable   string
-// 				defaultVal interface{}
-// 				isPK       bool
-// 				isAutoInc  bool
-// 			)
-// 			if err := colRows.Scan(&name, &typeStr, &nullable, &defaultVal, &isPK, &isAutoInc); err != nil {
-// 				colRows.Close()
-// 				return nil, err
-// 			}
-
-// 			goFieldName := toExportedFieldName(name)
-// 			goType := postgresTypeToGoType(typeStr)
-// 			field := &schema.Field{
-// 				Name:          goFieldName,
-// 				DBName:        name,
-// 				DataType:      schema.DataType(goType),
-// 				NotNull:       nullable == "NO",
-// 				PrimaryKey:    isPK,
-// 				AutoIncrement: isAutoInc,
-// 				DefaultValue:  fmt.Sprintf("%v", defaultVal),
-// 				// Set proper metadata to match GORM expectations
-// 				Creatable: true,
-// 				Updatable: true,
-// 				Readable:  true,
-// 			}
-// 			fields = append(fields, field)
-// 		}
-// 		colRows.Close()
-
-// 		// Get foreign key info
-// 		fkRows, err := db.Raw(`
-// 			SELECT
-// 				kcu.column_name,
-// 				ccu.table_name AS foreign_table_name,
-// 				ccu.column_name AS foreign_column_name
-// 			FROM information_schema.table_constraints AS tc
-// 			JOIN information_schema.key_column_usage AS kcu
-// 				ON tc.constraint_name = kcu.constraint_name
-// 			JOIN information_schema.constraint_column_usage AS ccu
-// 				ON ccu.constraint_name = tc.constraint_name
-// 			WHERE tc.constraint_type = 'FOREIGN KEY' AND tc.table_name = ?
-// 		`, tableName).Rows()
-// 		if err != nil {
-// 			return nil, err
-// 		}
-
-// 		relationships := schema.Relationships{}
-// 		for fkRows.Next() {
-// 			var (
-// 				columnName        string
-// 				foreignTableName  string
-// 				foreignColumnName string
-// 			)
-// 			if err := fkRows.Scan(&columnName, &foreignTableName, &foreignColumnName); err != nil {
-// 				fkRows.Close()
-// 				return nil, err
-// 			}
-
-// 			// Add belongs-to relationship
-// 			relationships.BelongsTo = append(relationships.BelongsTo, &schema.Relationship{
-// 				Type: schema.BelongsTo,
-// 				Field: &schema.Field{
-// 					Name:   toExportedFieldName(columnName),
-// 					DBName: columnName,
-// 				},
-// 			})
-// 		}
-// 		fkRows.Close()
-
-// 		// Create schema
-// 		tables[tableName] = &schema.Schema{
-// 			Name:          toExportedFieldName(tableName),
-// 			Table:         tableName,
-// 			Fields:        fields,
-// 			Relationships: schema.Relationships{}, // Create new empty relationships
-// 		}
-// 	}
-
-// 	return tables, nil
-// }
-
-// func postgresTypeToGoType(pgType string) string {
-// 	switch pgType {
-// 	case "integer", "int", "int4":
-// 		return "int"
-// 	case "bigint", "int8":
-// 		return "int64"
-// 	case "smallint", "int2":
-// 		return "int"
-// 	case "character varying", "varchar", "text", "char", "character":
-// 		return "string"
-// 	case "boolean", "bool":
-// 		return "bool"
-// 	case "numeric", "decimal":
-// 		return "float64"
-// 	case "real", "float4":
-// 		return "float32"
-// 	case "double precision", "float8":
-// 		return "float64"
-// 	case "timestamp with time zone", "timestamp without time zone", "date", "time":
-// 		return "time.Time"
-// 	case "json", "jsonb":
-// 		return "json"
-// 	case "uuid":
-// 		return "string"
-// 	default:
-// 		return "string"
-// 	}
-// }
 
 // normalizeTableName converts a table name to lowercase for case-insensitive comparison
 func normalizeTableName(name string) string {
@@ -480,7 +291,7 @@ func (c *SchemaComparer) compareSchemas(current, target map[string]*schema.Schem
 			emptySchema := &schema.Schema{
 				Table:         targetSchema.Table,
 				Fields:        []*schema.Field{},
-				Relationships: schema.Relationships{}, // Create new empty relationships
+				Relationships: schema.Relationships{},
 			}
 			tableDiff := c.compareTable(emptySchema, targetSchema)
 			diff.TablesToCreate = append(diff.TablesToCreate, tableDiff)
@@ -516,6 +327,7 @@ func (c *SchemaComparer) CompareTable(current, target *schema.Schema) TableDiff 
 
 // compareTable compares two table schemas and returns a TableDiff using GORM types
 func (c *SchemaComparer) compareTable(current, target *schema.Schema) TableDiff {
+	fmt.Printf("[DEBUG] diff for %s\n", target.Table)
 	diff := TableDiff{
 		Schema:            target,
 		FieldsToAdd:       make([]*schema.Field, 0),
@@ -529,72 +341,81 @@ func (c *SchemaComparer) compareTable(current, target *schema.Schema) TableDiff 
 		ForeignKeysToDrop: make([]*schema.Relationship, 0),
 	}
 
-	// Compare fields
 	currentFields := make(map[string]*schema.Field)
 	for _, field := range current.Fields {
-		// Skip relationship fields (not actual DB columns)
-		if isRelationshipField(field) {
-			continue
-		}
-		// Normalize field metadata for comparison
-		normalizedField := normalizeFieldMetadata(field)
-		currentFields[field.DBName] = normalizedField
+		currentFields[field.DBName] = normalizeFieldMetadata(field)
 	}
 
 	targetFields := make(map[string]*schema.Field)
 	for _, field := range target.Fields {
-		// Skip relationship fields (not actual DB columns)
-		if isRelationshipField(field) {
-			continue
-		}
-		// Normalize field metadata for comparison
-		normalizedField := normalizeFieldMetadata(field)
-		targetFields[field.DBName] = normalizedField
+		targetFields[field.DBName] = normalizeFieldMetadata(field)
 	}
 
-	// Fields to add or modify
-	for dbName, targetField := range targetFields {
-		if currentField, exists := currentFields[dbName]; !exists {
+	for _, field := range gormDefaultFields() {
+		if _, exists := targetFields[normalizeFieldName(field.DBName)]; exists {
+			targetFields[normalizeFieldName(field.DBName)].IgnoreMigration = true
+		}
+		if _, exists := currentFields[normalizeFieldName(field.DBName)]; exists {
+			currentFields[normalizeFieldName(field.DBName)].IgnoreMigration = true
+		}
+	}
+
+	for normName, targetField := range targetFields {
+		if targetField == nil || targetField.IgnoreMigration || targetField.DBName == "" {
+			continue
+		}
+		if currentField, exists := currentFields[normName]; !exists {
+			if debugDiffOutput {
+				fmt.Printf("[DEBUG] targetField: %+v\n", targetField.Name)
+				fmt.Printf("[DEBUG] Field addition detected for %s.%s\n\n", target.Table, targetField.DBName)
+			}
 			diff.FieldsToAdd = append(diff.FieldsToAdd, targetField)
 		} else if !fieldsEqual(currentField, targetField) {
 			if debugDiffOutput {
-				fmt.Printf("[DEBUG] Field modification detected for %s.%s: current type=%v, target type=%v\n", target.Table, targetField.DBName, currentField.DataType, targetField.DataType)
+				fmt.Printf("[DEBUG] currentField: %+v\n", currentField.Name)
+				fmt.Printf("[DEBUG] Field modification detected for %s.%s: current type=%v, target type=%v\n\n", target.Table, targetField.DBName, currentField.DataType, targetField.DataType)
 			}
 			diff.FieldsToModify = append(diff.FieldsToModify, targetField)
 		}
 	}
-	// Ignore fields to drop (orphaned columns in DB)
-	// for dbName, currentField := range currentFields {
-	// 	if _, exists := targetFields[dbName]; !exists {
-	// 		diff.FieldsToDrop = append(diff.FieldsToDrop, currentField)
-	// 	}
-	// }
-
-	// Ignore foreign key diffs for pure model-driven schema
-	// (do not populate diff.ForeignKeysToAdd or diff.ForeignKeysToDrop)
-
-	// Indexes (by name)
-	currentIndexes := make(map[string]*schema.Index)
-	for _, idx := range current.ParseIndexes() {
-		currentIndexes[idx.Name] = idx
-	}
-	targetIndexes := make(map[string]*schema.Index)
-	for _, idx := range target.ParseIndexes() {
-		targetIndexes[idx.Name] = idx
-	}
-	for name, targetIdx := range targetIndexes {
-		if currentIdx, exists := currentIndexes[name]; !exists {
-			diff.IndexesToAdd = append(diff.IndexesToAdd, targetIdx)
-		} else if !indexesEqual(currentIdx, targetIdx) {
-			diff.IndexesToModify = append(diff.IndexesToModify, targetIdx)
+	for normName, currentField := range currentFields {
+		if currentField.IgnoreMigration {
+			continue
 		}
-	}
-	for name, currentIdx := range currentIndexes {
-		if _, exists := targetIndexes[name]; !exists {
-			diff.IndexesToDrop = append(diff.IndexesToDrop, currentIdx)
+		if _, exists := targetFields[normName]; !exists {
+			if debugDiffOutput {
+				fmt.Printf("[DEBUG] currentField: %+v\n", currentField.Name)
+				fmt.Printf("[DEBUG] Field drop detected for %s.%s\n\n", current.Table, currentField.DBName)
+			}
+			diff.FieldsToDrop = append(diff.FieldsToDrop, currentField)
 		}
 	}
 
+	// Only include index diffs for new tables (when current.Fields is empty)
+	if len(current.Fields) == 0 {
+		currentIndexes := make(map[string]*schema.Index)
+		for _, idx := range current.ParseIndexes() {
+			currentIndexes[idx.Name] = idx
+		}
+		targetIndexes := make(map[string]*schema.Index)
+		for _, idx := range target.ParseIndexes() {
+			targetIndexes[idx.Name] = idx
+		}
+		for name, targetIdx := range targetIndexes {
+			if currentIdx, exists := currentIndexes[name]; !exists {
+				diff.IndexesToAdd = append(diff.IndexesToAdd, targetIdx)
+			} else if !indexesEqual(currentIdx, targetIdx) {
+				diff.IndexesToModify = append(diff.IndexesToModify, targetIdx)
+			}
+		}
+		for name, currentIdx := range currentIndexes {
+			if _, exists := targetIndexes[name]; !exists {
+				diff.IndexesToDrop = append(diff.IndexesToDrop, currentIdx)
+			}
+		}
+	}
+
+	// Foreign key diffs are still ignored for now
 	return diff
 }
 
@@ -729,6 +550,10 @@ func isRelationshipField(field *schema.Field) bool {
 		return false
 	}
 
+	if field.DBName == "" {
+		return true
+	}
+
 	// Check if it's a struct pointer (relationship field)
 	if field.FieldType.Kind() == reflect.Ptr && field.FieldType.Elem().Kind() == reflect.Struct {
 		return true
@@ -739,6 +564,13 @@ func isRelationshipField(field *schema.Field) bool {
 	}
 	// Check if it has a foreign key tag but is not the actual foreign key column
 	if field.Tag.Get("foreignKey") != "" && !strings.HasSuffix(field.DBName, "_id") {
+		return true
+	}
+	// Check if it's a struct (embedded or relationship)
+	if field.FieldType.Kind() == reflect.Struct {
+		return true
+	}
+	if strings.HasPrefix(field.Tag.Get("gorm"), "foreignKey:") {
 		return true
 	}
 	return false
@@ -757,34 +589,9 @@ func indexesEqual(a, b *schema.Index) bool {
 	return true
 }
 
-// relationshipsEqual compares two *schema.Relationship for relevant diff purposes
-func relationshipsEqual(a, b *schema.Relationship) bool {
-	if a == nil || b == nil {
-		return a == b
-	}
-	if a.Field == nil || b.Field == nil {
-		return a.Field == b.Field
-	}
-	return a.Field.DBName == b.Field.DBName && a.Schema != nil && b.Schema != nil && a.Schema.Table == b.Schema.Table
-}
 
-func tableNames(schemas map[string]*schema.Schema) []string {
-	names := make([]string, 0, len(schemas))
-	for name := range schemas {
-		names = append(names, name)
-	}
-	return names
-}
 
-func fieldNames(fields []*schema.Field) []string {
-	names := make([]string, len(fields))
-	for i, f := range fields {
-		names[i] = f.Name
-	}
-	return names
-}
-
-// Helper to convert snake_case or lower to ExportedCamelCase
+// toExportedFieldName converts snake_case or lower to ExportedCamelCase
 func toExportedFieldName(name string) string {
 	if name == "" {
 		return "Field"
@@ -813,213 +620,49 @@ func toUpper(b byte) byte {
 	return b
 }
 
-// Map SQLite type to Go type string
-func sqliteTypeToGoType(sqliteType string) string {
-	t := sqliteType
-	t = lower(t)
-	switch {
-	case contains(t, "int"):
-		return "int"
-	case contains(t, "char"), contains(t, "clob"), contains(t, "text"):
-		return "string"
-	case contains(t, "blob"):
-		return "[]byte"
-	case contains(t, "real"), contains(t, "floa"), contains(t, "doub"):
-		return "float64"
-	case contains(t, "bool"):
-		return "bool"
-	case contains(t, "date"), contains(t, "time"):
-		return "time.Time"
+
+
+// embedsGormModel returns true if the type embeds gorm.Model
+func embedsGormModel(t reflect.Type) bool {
+	t = indirectType(t)
+	for i := 0; i < t.NumField(); i++ {
+		f := t.Field(i)
+		if f.Anonymous && f.Type.PkgPath() == "gorm.io/gorm" && f.Type.Name() == "Model" {
+			return true
+		}
 	}
-	return "string"
+	return false
 }
 
-func lower(s string) string {
-	b := []byte(s)
-	for i := range b {
-		if b[i] >= 'A' && b[i] <= 'Z' {
-			b[i] = b[i] - 'A' + 'a'
-		}
+func indirectType(t reflect.Type) reflect.Type {
+	for t.Kind() == reflect.Ptr {
+		t = t.Elem()
 	}
-	return string(b)
+	return t
 }
 
-func contains(s, substr string) bool {
-	return len(s) >= len(substr) && (s == substr || (len(s) > len(substr) && (indexOf(s, substr) >= 0)))
+// gormDefaultFields returns the default GORM fields as schema.Field
+func gormDefaultFields() []*schema.Field {
+	return []*schema.Field{
+		{Name: "ID", DBName: "id", DataType: "uint", PrimaryKey: true, AutoIncrement: true, IgnoreMigration: true},
+		{Name: "CreatedAt", DBName: "created_at", DataType: "time", IgnoreMigration: true},
+		{Name: "UpdatedAt", DBName: "updated_at", DataType: "time", IgnoreMigration: true},
+		{Name: "DeletedAt", DBName: "deleted_at", DataType: "time", IgnoreMigration: true},
+	}
 }
 
-func indexOf(s, substr string) int {
-	for i := 0; i+len(substr) <= len(s); i++ {
-		if s[i:i+len(substr)] == substr {
-			return i
-		}
-	}
-	return -1
-}
-
-func (c *SchemaComparer) getSQLiteSchema(db *gorm.DB) (map[string]*schema.Schema, error) {
-	tables := make(map[string]*schema.Schema)
-	rows, err := db.Raw("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'").Rows()
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		var tableName string
-		if err := rows.Scan(&tableName); err != nil {
-			return nil, err
-		}
-
-		// Get column info
-		colRows, err := db.Raw(fmt.Sprintf("PRAGMA table_info('%s')", tableName)).Rows()
-		if err != nil {
-			return nil, err
-		}
-
-		fields := make([]*schema.Field, 0)
-		for colRows.Next() {
-			var (
-				cid        int
-				name       string
-				typeStr    string
-				notnull    int
-				defaultVal interface{}
-				pk         int
-			)
-			if err := colRows.Scan(&cid, &name, &typeStr, &notnull, &defaultVal, &pk); err != nil {
-				colRows.Close()
-				return nil, err
-			}
-
-			goFieldName := toExportedFieldName(name)
-			goType := sqliteTypeToGoType(typeStr)
-			field := &schema.Field{
-				Name:         goFieldName,
-				DBName:       name,
-				DataType:     schema.DataType(goType),
-				NotNull:      notnull == 1,
-				PrimaryKey:   pk == 1,
-				DefaultValue: fmt.Sprintf("%v", defaultVal),
-			}
-			fields = append(fields, field)
-		}
-		colRows.Close()
-
-		// Get index info
-		indexRows, err := db.Raw(fmt.Sprintf("PRAGMA index_list('%s')", tableName)).Rows()
-		if err != nil {
-			return nil, err
-		}
-		indexes := make(map[string]bool)
-		for indexRows.Next() {
-			var (
-				seq     int
-				name    string
-				unique  int
-				origin  string
-				partial int
-			)
-			if err := indexRows.Scan(&seq, &name, &unique, &origin, &partial); err != nil {
-				indexRows.Close()
-				return nil, err
-			}
-			indexes[name] = unique == 1
-		}
-		indexRows.Close()
-
-		// Get index columns
-		for indexName, isUnique := range indexes {
-			indexColRows, err := db.Raw(fmt.Sprintf("PRAGMA index_info('%s')", indexName)).Rows()
-			if err != nil {
-				return nil, err
-			}
-			for indexColRows.Next() {
-				var (
-					seqno   int
-					cid     int
-					colName string
-				)
-				if err := indexColRows.Scan(&seqno, &cid, &colName); err != nil {
-					indexColRows.Close()
-					return nil, err
-				}
-				// Find the field and mark it as unique if the index is unique
-				for _, field := range fields {
-					if field.DBName == colName {
-						field.Unique = isUnique
-						break
-					}
-				}
-			}
-			indexColRows.Close()
-		}
-
-		// Get foreign key info
-		fkRows, err := db.Raw(fmt.Sprintf("PRAGMA foreign_key_list('%s')", tableName)).Rows()
-		if err != nil {
-			return nil, err
-		}
-		relationships := schema.Relationships{}
-		for fkRows.Next() {
-			var (
-				id       int
-				seq      int
-				table    string
-				from     string
-				to       string
-				onUpdate string
-				onDelete string
-				match    string
-			)
-			if err := fkRows.Scan(&id, &seq, &table, &from, &to, &onUpdate, &onDelete, &match); err != nil {
-				fkRows.Close()
-				return nil, err
-			}
-			// Find the field and add a BelongsTo relationship
-			for _, field := range fields {
-				if field.DBName == from {
-					relationships.BelongsTo = append(relationships.BelongsTo, &schema.Relationship{
-						Field: field,
-						Type:  schema.BelongsTo,
-					})
-					break
-				}
-			}
-		}
-		fkRows.Close()
-
-		// Build schema.Schema
-		parsedSchema := &schema.Schema{
-			Name:          toExportedFieldName(tableName),
-			Table:         tableName,
-			Fields:        fields,
-			Relationships: schema.Relationships{}, // Create new empty relationships
-		}
-		tables[tableName] = parsedSchema
-	}
-
-	return tables, nil
-}
-
-// Helper to convert CamelCase to snake_case
-func toSnakeCase(str string) string {
-	if str == "" {
-		return ""
-	}
+// normalizeFieldName: normalize field name for comparison (case-insensitive, underscores ignored)
+func normalizeFieldName(name string) string {
 	var result []rune
-	for i, r := range str {
-		if i > 0 && r >= 'A' && r <= 'Z' {
-			result = append(result, '_')
+	for i, r := range name {
+		if unicode.IsUpper(r) {
+			if i > 0 {
+				result = append(result, '_')
+			}
+			result = append(result, unicode.ToLower(r))
+		} else {
+			result = append(result, r)
 		}
-		result = append(result, toLowerRune(r))
 	}
 	return string(result)
-}
-
-func toLowerRune(r rune) rune {
-	if r >= 'A' && r <= 'Z' {
-		return r - 'A' + 'a'
-	}
-	return r
 }

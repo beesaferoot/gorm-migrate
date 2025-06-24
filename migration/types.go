@@ -2,7 +2,6 @@ package migration
 
 import (
 	"fmt"
-	"reflect"
 	"sync"
 	"time"
 
@@ -139,7 +138,7 @@ func ResetMigrations() {
 
 // ModelRegistry - users must implement this
 type ModelRegistry interface {
-	GetModelTypes() map[string]reflect.Type
+	GetModels() map[string]interface{}
 }
 
 // Global registry - users set this in their main.go

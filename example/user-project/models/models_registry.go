@@ -1,9 +1,7 @@
 package models
 
-import "reflect"
-
-// ModelTypeRegistry maps model names to their reflect.Type
-var ModelTypeRegistry = map[string]reflect.Type{
-	"User": reflect.TypeOf(User{}),
-	"Post": reflect.TypeOf(Post{}),
+// ModelTypeRegistry maps model names to their structs
+var ModelTypeRegistry = map[string]interface{}{
+	"User": User{},
+	"Post": Post{},
 }

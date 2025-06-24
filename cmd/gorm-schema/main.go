@@ -8,7 +8,19 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/beesaferoot/gorm-schema/migration/commands"
+	"github.com/beesaferoot/gorm-schema/migration"
+	"github.com/beesaferoot/gorm-schema/example/models"
 )
+
+type MyModelRegistry struct{}
+
+func (r *MyModelRegistry) GetModels() map[string]interface{} {
+	return models.ModelTypeRegistry
+}
+
+func init() {
+	migration.GlobalModelRegistry = &MyModelRegistry{}
+}
 
 func main() {
 	_ = godotenv.Load()

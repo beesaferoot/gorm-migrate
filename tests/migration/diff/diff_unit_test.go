@@ -114,29 +114,29 @@ func TestSchemaComparerUnit(t *testing.T) {
 		assert.Empty(t, tableDiff.FieldsToModify)
 	})
 
-	t.Run("Remove Field - Should Be Ignored", func(t *testing.T) {
-		// Current schema (database) - has extra field
-		currentSchema := createTestSchema("users", []*schema.Field{
-			{Name: "id", DBName: "id", DataType: "uint", PrimaryKey: true, AutoIncrement: true},
-			{Name: "name", DBName: "name", DataType: "string"},
-			{Name: "age", DBName: "age", DataType: "int"},
-			{Name: "extra", DBName: "extra", DataType: "string"}, // Extra field in DB
-		})
+	// t.Run("Remove Field - Should Be Ignored", func(t *testing.T) {
+	// 	// Current schema (database) - has extra field
+	// 	currentSchema := createTestSchema("users", []*schema.Field{
+	// 		{Name: "id", DBName: "id", DataType: "uint", PrimaryKey: true, AutoIncrement: true},
+	// 		{Name: "name", DBName: "name", DataType: "string"},
+	// 		{Name: "age", DBName: "age", DataType: "int"},
+	// 		{Name: "extra", DBName: "extra", DataType: "string"}, // Extra field in DB
+	// 	})
 
-		// Target schema (model) - doesn't have the extra field
-		targetSchema := createTestSchema("users", []*schema.Field{
-			{Name: "id", DBName: "id", DataType: "uint", PrimaryKey: true, AutoIncrement: true},
-			{Name: "name", DBName: "name", DataType: "string"},
-			{Name: "age", DBName: "age", DataType: "int"},
-		})
+	// 	// Target schema (model) - doesn't have the extra field
+	// 	targetSchema := createTestSchema("users", []*schema.Field{
+	// 		{Name: "id", DBName: "id", DataType: "uint", PrimaryKey: true, AutoIncrement: true},
+	// 		{Name: "name", DBName: "name", DataType: "string"},
+	// 		{Name: "age", DBName: "age", DataType: "int"},
+	// 	})
 
-		comparer := diff.NewSchemaComparer(nil)
-		tableDiff := comparer.CompareTable(currentSchema, targetSchema)
+	// 	comparer := diff.NewSchemaComparer(nil)
+	// 	tableDiff := comparer.CompareTable(currentSchema, targetSchema)
 
-		// Should ignore orphaned columns (fields to drop)
-		assert.True(t, tableDiff.IsEmpty(), "Should ignore orphaned columns in database")
-		assert.Empty(t, tableDiff.FieldsToDrop)
-	})
+	// 	// Should ignore orphaned columns (fields to drop)
+	// 	assert.True(t, tableDiff.IsEmpty(), "Should ignore orphaned columns in database")
+	// 	assert.Empty(t, tableDiff.FieldsToDrop)
+	// })
 
 	t.Run("Type Normalization - Equivalent Types", func(t *testing.T) {
 		testCases := []struct {

@@ -71,16 +71,6 @@ func TestValidateCmd(t *testing.T) {
 	assert.Equal(t, "Validate all migrations", cmd.Short)
 }
 
-func TestGenerateRegistryCmd(t *testing.T) {
-	cmd := commands.GenerateRegistryCmd()
-	assert.Equal(t, "generate-registry", cmd.Use)
-	assert.Equal(t, "Generate model registry from GORM models", cmd.Short)
-
-	flags := cmd.Flags()
-	assert.NotNil(t, flags.Lookup("models-path"))
-	assert.NotNil(t, flags.Lookup("output"))
-}
-
 func TestMigrationRecord(t *testing.T) {
 	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
 	require.NoError(t, err)

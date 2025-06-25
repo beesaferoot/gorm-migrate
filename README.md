@@ -86,12 +86,10 @@ Create `models/models_registry.go` in your project:
 ```go
 package models
 
-import "reflect"
-
-var ModelTypeRegistry = map[string]reflect.Type{
-    "User":    reflect.TypeOf(User{}),
-    "Post":    reflect.TypeOf(Post{}),
-    "Comment": reflect.TypeOf(Comment{}),
+var ModelTypeRegistry = map[string]interface{}{
+    "User":    User{},
+    "Post":    Post{},
+    "Comment": Comment{},
     // Add all your models here
 }
 ```
@@ -220,14 +218,12 @@ make lint
 
 ## Limitations
 
-- **Index changes (add/drop/modify) are only supported for new tables.**
-  - If you add, remove, or modify indexes on existing tables, these changes will not be automatically generated in migration files. You must add such index changes manually to your migrations.
+- **Index changes (add/drop/modify) are only guaranteed for new tables.**
+  - If you add, remove, or modify indexes on existing tables, these changes may not be automatically generated in migration files. You must add such index changes manually to your migrations.
 - **Foreign key diffs are currently ignored.**
   - Changes to foreign key constraints (add/drop/modify) are not detected or generated in migrations.
 - **Schema comparison is model-driven.**
   - Only columns present in your Go models are considered for schema diffs. Any manual changes to the database schema that are not reflected in your models will not be detected.
-- **Embedded structs and relationships:**
-  - Ensure your models use GORM conventions for embedded structs and relationships, as only direct DB columns are considered in diffs.
 
 If you require support for these features, please open an issue or contribute to the project.
 

@@ -21,6 +21,9 @@ func (c *SchemaComparer) GetCurrentSchema() (map[string]*schema.Schema, error) {
 // GetModelSchemas gets the schema from the provided models
 func (c *SchemaComparer) GetModelSchemas(models ...interface{}) (map[string]*schema.Schema, error) {
 	modelSchemas := make(map[string]*schema.Schema)
+	originalRelationships := make(map[string]*schema.Relationships)
+
+	// First pass: create schemas with fields and store original relationships
 	for _, model := range models {
 		stmt := &gorm.Statement{DB: c.db}
 		if err := stmt.Parse(model); err != nil {
@@ -34,6 +37,10 @@ func (c *SchemaComparer) GetModelSchemas(models ...interface{}) (map[string]*sch
 				continue
 			}
 			if seenColumns[field.DBName] {
+				continue
+			}
+			// Skip relationship fields that don't have DB columns
+			if isRelationshipField(field) {
 				continue
 			}
 			seenColumns[field.DBName] = true
@@ -50,102 +57,108 @@ func (c *SchemaComparer) GetModelSchemas(models ...interface{}) (map[string]*sch
 				}
 			}
 		}
+
+		// Store original relationships for later processing
+		originalRelationships[s.Table] = &s.Relationships
+
+		// Create a copy of the schema with fields and empty relationships
 		copySchema := schema.Schema{
 			Name:          s.Name,
 			Table:         s.Table,
 			Fields:        columns,
-			Relationships: schema.Relationships{},
+			Relationships: schema.Relationships{}, // Create empty relationships to avoid copying locks
 		}
 		modelSchemas[s.Table] = &copySchema
 	}
 
-	// Second pass: iterate over relationships and set up foreign keys properly
-	for _, s := range modelSchemas {
+	// Second pass: process relationships and set up foreign keys properly
+	for tableName, s := range modelSchemas {
 		relationships := schema.Relationships{}
+		originalRel := originalRelationships[tableName]
 
-		for _, rel := range s.Relationships.BelongsTo {
-			if rel.Field != nil {
-				// Find the actual foreign key field by looking at the GORM tag
-				var fkField *schema.Field
-				if rel.Field.TagSettings != nil {
-					// Get the foreign key field name from the GORM tag
-					if fkFieldName, exists := rel.Field.TagSettings["FOREIGNKEY"]; exists {
-						// Look for the field with this name
-						for _, field := range s.Fields {
-							if field.DBName == strings.ToLower(fkFieldName) {
-								fkField = field
-								break
-							}
-						}
-					}
-				}
+		// BelongsTo relationships
+		for _, rel := range originalRel.BelongsTo {
+			// Build a map of DB columns for this schema
+			dbColumns := make(map[string]*schema.Field)
+			for _, field := range s.Fields {
+				dbColumns[strings.ToLower(field.DBName)] = field
+			}
 
-				// Fallback: try to find by naming convention if tag lookup failed
-				if fkField == nil {
-					for _, field := range s.Fields {
-						// Look for the foreign key field that matches the relationship
-						if rel.FieldSchema != nil {
-							// Check if this field is the foreign key for the relationship
-							expectedFKName := strings.ToLower(rel.FieldSchema.Name) + "_id"
-							expectedFKName2 := strings.ToLower(rel.FieldSchema.Name) + "id"
-							if field.DBName == expectedFKName || field.DBName == expectedFKName2 {
-								fkField = field
-								break
-							}
-						}
-					}
-				}
-
-				// If we found the foreign key field, create the relationship
-				if fkField != nil && rel.FieldSchema != nil {
-					// Find the referenced schema by name
-					var referencedSchema *schema.Schema
-					for _, relatedSchema := range modelSchemas {
-						if relatedSchema.Name == rel.FieldSchema.Name {
-							referencedSchema = relatedSchema
-							break
-						}
-					}
-
-					if referencedSchema != nil {
-						// Create a new relationship with the correct foreign key field and referenced schema
-						newRel := &schema.Relationship{
-							Type:        schema.BelongsTo,
-							Field:       fkField,
-							Schema:      referencedSchema, // This should be the parent table
-							FieldSchema: rel.FieldSchema,
-						}
-						relationships.BelongsTo = append(relationships.BelongsTo, newRel)
-					}
+			// Build candidate foreign key names
+			var candidates []string
+			if rel.Field != nil && rel.Field.TagSettings != nil {
+				if fkFieldName, exists := rel.Field.TagSettings["FOREIGNKEY"]; exists {
+					candidates = append(candidates, fkFieldName)
+					candidates = append(candidates, normalizeFieldName(fkFieldName))
+					candidates = append(candidates, strings.ToLower(fkFieldName))
 				}
 			}
+			if rel.FieldSchema != nil {
+				candidates = append(candidates, rel.FieldSchema.Name+"ID")
+				candidates = append(candidates, normalizeFieldName(rel.FieldSchema.Name)+"_id")
+				candidates = append(candidates, strings.ToLower(rel.FieldSchema.Name)+"id")
+			}
+
+			// Try to find a matching DB column
+			var fkField *schema.Field
+			for _, candidate := range candidates {
+				if field, ok := dbColumns[strings.ToLower(candidate)]; ok {
+					fkField = field
+					break
+				}
+			}
+
+			if fkField != nil && fkField.DBName != "" && rel.FieldSchema != nil {
+				// Find the referenced schema by name
+				var referencedSchema *schema.Schema
+				for _, relatedSchema := range modelSchemas {
+					if relatedSchema.Name == rel.FieldSchema.Name {
+						referencedSchema = relatedSchema
+						break
+					}
+				}
+
+				if referencedSchema != nil {
+					// Create a new relationship with the correct foreign key field and referenced schema
+					newRel := &schema.Relationship{
+						Type:        schema.BelongsTo,
+						Field:       fkField,      
+						Schema:      referencedSchema,
+						FieldSchema: rel.FieldSchema,
+					}
+					relationships.BelongsTo = append(relationships.BelongsTo, newRel)
+				}
+			} else if debugDiffOutput {
+				fmt.Printf("[DEBUG] No valid foreign key found for relationship %s in table %s\n", rel.Name, s.Table)
+			}
 		}
-		for _, rel := range s.Relationships.HasMany {
+
+		// HasMany relationships
+		for _, rel := range originalRel.HasMany {
 			if rel.Field != nil {
 				relationships.HasMany = append(relationships.HasMany, rel)
 			}
 		}
-		for _, rel := range s.Relationships.HasOne {
+
+		// HasOne relationships
+		for _, rel := range originalRel.HasOne {
 			if rel.Field != nil {
 				relationships.HasOne = append(relationships.HasOne, rel)
 			}
 		}
-		for _, rel := range s.Relationships.Many2Many {
+
+		// Many2Many relationships
+		for _, rel := range originalRel.Many2Many {
 			if rel.Field != nil {
 				relationships.Many2Many = append(relationships.Many2Many, rel)
 			}
 		}
-		// Create a new relationships instance to avoid copying locks
-		var newRelationships schema.Relationships
-		newRelationships.BelongsTo = append(newRelationships.BelongsTo, relationships.BelongsTo...)
-		newRelationships.HasMany = append(newRelationships.HasMany, relationships.HasMany...)
-		newRelationships.HasOne = append(newRelationships.HasOne, relationships.HasOne...)
-		newRelationships.Many2Many = append(newRelationships.Many2Many, relationships.Many2Many...)
-		// Use pointer indirection to update the fields directly, not the struct
-		s.Relationships.BelongsTo = newRelationships.BelongsTo
-		s.Relationships.HasMany = newRelationships.HasMany
-		s.Relationships.HasOne = newRelationships.HasOne
-		s.Relationships.Many2Many = newRelationships.Many2Many
+
+		// Update the schema with processed relationships
+		s.Relationships.BelongsTo = relationships.BelongsTo
+		s.Relationships.HasMany = relationships.HasMany
+		s.Relationships.HasOne = relationships.HasOne
+		s.Relationships.Many2Many = relationships.Many2Many
 	}
 
 	// Sort tables based on dependencies
@@ -360,9 +373,10 @@ func (c *SchemaComparer) compareTable(current, target *schema.Schema) TableDiff 
 	}
 
 	for normName, targetField := range targetFields {
-		if targetField == nil || targetField.IgnoreMigration || targetField.DBName == "" {
+		if targetField == nil || targetField.DBName == "" {
 			continue
 		}
+
 		if currentField, exists := currentFields[normName]; !exists {
 			if debugDiffOutput {
 				fmt.Printf("[DEBUG] targetField: %+v\n", targetField.Name)
@@ -378,9 +392,6 @@ func (c *SchemaComparer) compareTable(current, target *schema.Schema) TableDiff 
 		}
 	}
 	for normName, currentField := range currentFields {
-		if currentField.IgnoreMigration {
-			continue
-		}
 		if _, exists := targetFields[normName]; !exists {
 			if debugDiffOutput {
 				fmt.Printf("[DEBUG] currentField: %+v\n", currentField.Name)
@@ -392,6 +403,7 @@ func (c *SchemaComparer) compareTable(current, target *schema.Schema) TableDiff 
 
 	// Only include index diffs for new tables (when current.Fields is empty)
 	if len(current.Fields) == 0 {
+		// Process indexes for new tables
 		currentIndexes := make(map[string]*schema.Index)
 		for _, idx := range current.ParseIndexes() {
 			currentIndexes[idx.Name] = idx
@@ -401,20 +413,23 @@ func (c *SchemaComparer) compareTable(current, target *schema.Schema) TableDiff 
 			targetIndexes[idx.Name] = idx
 		}
 		for name, targetIdx := range targetIndexes {
-			if currentIdx, exists := currentIndexes[name]; !exists {
+			if _, exists := currentIndexes[name]; !exists {
 				diff.IndexesToAdd = append(diff.IndexesToAdd, targetIdx)
-			} else if !indexesEqual(currentIdx, targetIdx) {
+			} else if !indexesEqual(currentIndexes[name], targetIdx) {
 				diff.IndexesToModify = append(diff.IndexesToModify, targetIdx)
 			}
 		}
-		for name, currentIdx := range currentIndexes {
-			if _, exists := targetIndexes[name]; !exists {
-				diff.IndexesToDrop = append(diff.IndexesToDrop, currentIdx)
+
+		// Process foreign key relationships for new tables
+		for _, rel := range target.Relationships.BelongsTo {
+			if rel.Field != nil && rel.Schema != nil {
+				// Only add foreign keys that reference fields in the same table
+				// and have a valid referenced schema
+				diff.ForeignKeysToAdd = append(diff.ForeignKeysToAdd, rel)
 			}
 		}
 	}
 
-	// Foreign key diffs are still ignored for now
 	return diff
 }
 
@@ -588,8 +603,6 @@ func indexesEqual(a, b *schema.Index) bool {
 	return true
 }
 
-
-
 // toExportedFieldName converts snake_case or lower to ExportedCamelCase
 func toExportedFieldName(name string) string {
 	if name == "" {
@@ -618,8 +631,6 @@ func toUpper(b byte) byte {
 	}
 	return b
 }
-
-
 
 // embedsGormModel returns true if the type embeds gorm.Model
 func embedsGormModel(t reflect.Type) bool {

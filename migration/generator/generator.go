@@ -372,9 +372,16 @@ func topoSortTables(tables []diff.TableDiff) ([]diff.TableDiff, error) {
 			return fmt.Errorf("table %s not found", name)
 		}
 		for _, fk := range t.ForeignKeysToAdd {
-			if fk.Schema.Table != "" && fk.Schema.Table != t.Schema.Table {
-				if err := visit(fk.Schema.Table); err != nil {
-					return err
+			if len(fk.References) < 1 {
+				continue
+			}
+			r := fk.References[0]
+			if r != nil && r.PrimaryKey != nil && r.PrimaryKey.Schema != nil {
+				referencedTable := r.PrimaryKey.Schema.Table
+				if referencedTable != "" && referencedTable != t.Schema.Table {
+					if err := visit(referencedTable); err != nil {
+						return err
+					}
 				}
 			}
 		}
@@ -521,12 +528,16 @@ func (g *Generator) generateCreateTableSQL(table diff.TableDiff) string {
 
 	// Add foreign keys as table constraints
 	for _, fk := range table.ForeignKeysToAdd {
-		if fk.Field != nil && fk.Schema != nil {
+		if len(fk.References) < 1 {
+			continue
+		}
+		r := fk.References[0]
+		if fk.Field != nil && fk.Schema != nil && r != nil {
 			fkDef := fmt.Sprintf("CONSTRAINT fk_%s_%s_fkey FOREIGN KEY (%s) REFERENCES %s(id) ON DELETE CASCADE",
 				table.Schema.Table,
-				fk.Field.DBName,
-				quoteIdentifier(fk.Field.DBName),
-				quoteIdentifier(fk.Schema.Table))
+				r.ForeignKey.DBName,
+				quoteIdentifier(r.ForeignKey.DBName),
+				quoteIdentifier(r.PrimaryKey.Schema.Table))
 			tableConstraints = append(tableConstraints, "    "+fkDef)
 		}
 	}
@@ -699,8 +710,8 @@ func (g *Generator) validateSchemaDiff(diff *diff.SchemaDiff) error {
 		// Validate foreign keys
 		for _, fk := range table.ForeignKeysToAdd {
 			if fk.Field != nil {
-				if !columnNames[table.Schema.Table][fk.Field.DBName] {
-					return fmt.Errorf("foreign key column %s does not exist in table %s", fk.Field.DBName, table.Schema.Table)
+				if !columnNames[table.Schema.Table][fk.References[0].ForeignKey.DBName] {
+					return fmt.Errorf("foreign key column %s does not exist in table %s", fk.References[0].ForeignKey.DBName, table.Schema.Table)
 				}
 			}
 		}

@@ -12,7 +12,7 @@ Automatically generate database migrations from your GORM models by comparing th
 - 🔄 **Auto-generate migrations** from GORM model changes
 - 🎯 **Smart comparison** - only generates migrations for actual changes
 - 📊 **Case-insensitive** table and column name handling
-- 🚀 **Zero false positives** with advanced type normalization
+- 🚀 **Almost Zero false positives** with advanced type normalization
 
 ## Quick Start
 
@@ -36,7 +36,6 @@ Create `cmd/migration/main.go` in your project:
 package main
 
 import (
-    "reflect"
     "your-project/models" // Import your models package
     "github.com/spf13/cobra"
     "github.com/joho/godotenv"
@@ -47,7 +46,7 @@ import (
 // Simple registry implementation
 type MyModelRegistry struct{}
 
-func (r *MyModelRegistry) GetModelTypes() map[string]reflect.Type {
+func (r *MyModelRegistry) GetModels() map[string]interface{} {
     return models.ModelTypeRegistry // Your registry
 }
 

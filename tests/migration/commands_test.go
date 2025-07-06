@@ -19,12 +19,6 @@ func TestInitCmd(t *testing.T) {
 	assert.Equal(t, "Initialize migration tracking table in the database", cmd.Short)
 }
 
-func TestCreateCmd(t *testing.T) {
-	cmd := commands.CreateCmd()
-	assert.Equal(t, "create [name]", cmd.Use)
-	assert.Equal(t, "Create a new migration file", cmd.Short)
-}
-
 func TestGenerateCmd(t *testing.T) {
 	cmd := commands.GenerateCmd()
 	assert.Equal(t, "generate [name]", cmd.Use)

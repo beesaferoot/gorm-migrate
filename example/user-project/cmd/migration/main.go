@@ -30,7 +30,6 @@ func main() {
 
 	rootCmd.AddCommand(
 		commands.InitCmd(),
-		commands.CreateCmd(),
 		commands.GenerateCmd(),
 		commands.UpCmd(),
 		commands.DownCmd(),

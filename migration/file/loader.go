@@ -240,33 +240,3 @@ func (l *MigrationLoader) extractMultiLineSQL(lines []string, startLine int) (st
 
 	return "", false, nil
 }
-
-// extractSQLFromExecLine extracts SQL statement from a db.Exec line (legacy method, kept for compatibility)
-func (l *MigrationLoader) extractSQLFromExecLine(line string) string {
-	// Look for backticks containing SQL
-	start := strings.Index(line, "`")
-	if start == -1 {
-		if l.debug {
-			fmt.Printf("[DEBUG] No backtick found in line: %s\n", line)
-		}
-		return ""
-	}
-
-	// Find the end of the SQL (next backtick)
-	end := start + 1
-	for end < len(line) {
-		if line[end] == '`' {
-			break
-		}
-		end++
-	}
-
-	if end >= len(line) {
-		if l.debug {
-			fmt.Printf("[DEBUG] No closing backtick found in line: %s\n", line)
-		}
-		return ""
-	}
-
-	return line[start+1 : end]
-}

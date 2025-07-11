@@ -62,6 +62,7 @@ func main() {
     }
 
     rootCmd.AddCommand(
+        commands.RegisterCmd(),
         commands.InitCmd(),
         commands.CreateCmd(),
         commands.GenerateCmd(),
@@ -78,9 +79,17 @@ func main() {
 }
 ```
 
-### 4. Create your model registry
 
-Create `models/models_registry.go` in your project:
+### 4. Generate your model registry
+
+Use the register command to automatically scan your models directory (e.g., models/) and generate a models_registry.go file.
+
+
+```bash
+go run cmd/migration/main.go register 
+```
+
+This command creates a standard Go file that you can review and even edit if needed. It will look something like this:
 
 ```go
 package models
@@ -97,6 +106,7 @@ var ModelTypeRegistry = map[string]interface{}{
 
 ```bash
 go run cmd/migration/main.go init
+go run cmd/migration/main.go register [path/to/models]
 go run cmd/migration/main.go generate init_db
 go run cmd/migration/main.go up
 ```

@@ -7,9 +7,9 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/spf13/cobra"
 
-	"github.com/beesaferoot/gorm-schema/migration/commands"
-	"github.com/beesaferoot/gorm-schema/migration"
 	"github.com/beesaferoot/gorm-schema/example/models"
+	"github.com/beesaferoot/gorm-schema/migration"
+	"github.com/beesaferoot/gorm-schema/migration/commands"
 )
 
 type MyModelRegistry struct{}
@@ -31,6 +31,7 @@ func main() {
 	}
 
 	rootCmd.AddCommand(
+		commands.RegisterCmd(),
 		commands.InitCmd(),
 		commands.CreateCmd(),
 		commands.GenerateCmd(),

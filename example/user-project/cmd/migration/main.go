@@ -1,13 +1,12 @@
 package main
 
 import (
-
 	"github.com/beesaferoot/gorm-schema/example/user-project/models" // User's models package - CHANGE THIS
 	"github.com/beesaferoot/gorm-schema/migration"
 	"github.com/beesaferoot/gorm-schema/migration/commands"
 
-	"github.com/spf13/cobra"
 	"github.com/joho/godotenv"
+	"github.com/spf13/cobra"
 )
 
 // Simple registry implementation
@@ -29,6 +28,7 @@ func main() {
 	}
 
 	rootCmd.AddCommand(
+		commands.RegisterCmd(),
 		commands.InitCmd(),
 		commands.CreateCmd(),
 		commands.GenerateCmd(),

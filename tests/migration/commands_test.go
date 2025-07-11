@@ -13,6 +13,13 @@ import (
 	"github.com/beesaferoot/gorm-schema/migration/commands"
 )
 
+func TestRegisterCmd(t *testing.T) {
+	cmd := commands.RegisterCmd()
+	assert.Equal(t, "register [path]", cmd.Use)
+	assert.Equal(t, "Generates model registry file", cmd.Short)
+	assert.Equal(t, `Scans the given path for Go files containing GORM models (structs embedding gorm.Model) and generates a models_registry.go file. If no path is provided, it defaults to the 'models' directory.`, cmd.Long)
+}
+
 func TestInitCmd(t *testing.T) {
 	cmd := commands.InitCmd()
 	assert.Equal(t, "init", cmd.Use)

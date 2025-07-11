@@ -72,7 +72,6 @@ func getMigrationLoader() (*file.MigrationLoader, error) {
 	return file.NewMigrationLoader(getMigrationsDir(), template), nil
 }
 
-// validate models path
 func validateModelPath(path string) (string, error) {
 	if path == "" {
 		path = "models"
@@ -97,7 +96,6 @@ func validateModelPath(path string) (string, error) {
 	return absPath, nil
 }
 
-// Create model registry
 func createModelRegisterFile(dirPath string) (string, error) {
 	filePath := filepath.Join(dirPath, "models_registry.go")
 
@@ -117,8 +115,6 @@ var ModelTypeRegistry = map[string]interface{}{
 	if err := os.WriteFile(filePath, []byte(content), 0644); err != nil {
 		return "", fmt.Errorf("failed to create model registry file: %w", err)
 	}
-
-	//defer file.Close()
 
 	return filePath, nil
 }

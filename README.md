@@ -86,7 +86,7 @@ Use the register command to automatically scan your models directory (e.g., mode
 
 
 ```bash
-go run cmd/migration/main.go register 
+go run cmd/migration/main.go register [path/to/models]
 ```
 
 This command creates a standard Go file that you can review and even edit if needed. It will look something like this:

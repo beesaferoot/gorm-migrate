@@ -6,9 +6,10 @@ import (
 	"testing"
 
 	"github.com/beesaferoot/gorm-schema/migration/diff"
-	"gorm.io/gorm/schema"
-
 	"github.com/stretchr/testify/require"
+	"gorm.io/driver/sqlite"
+	"gorm.io/gorm"
+	"gorm.io/gorm/schema"
 )
 
 func TestGenerateCreateTableSQL_ForeignKey(t *testing.T) {
@@ -365,6 +366,13 @@ func TestGenerateMigration_ComplexRelationships(t *testing.T) {
 	require.Contains(t, sql, "ON DELETE CASCADE")
 }
 
+// createTestDB creates a test database for unit tests
+func createTestDB(t *testing.T) *gorm.DB {
+	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+	require.NoError(t, err)
+	return db
+}
+
 func createTestSchema(tableName string, fields []*schema.Field) *schema.Schema {
 	return &schema.Schema{
 		Name:   tableName,
@@ -384,7 +392,7 @@ func TestDownMigrationGeneration(t *testing.T) {
 			{Name: "name", DBName: "name", DataType: "string"},
 			{Name: "email", DBName: "email", DataType: "string"},
 		})
-		comparer := diff.NewSchemaComparer(nil)
+		comparer := diff.NewSchemaComparer(createTestDB(t))
 		diffResult := comparer.CompareTable(currentSchema, targetSchema)
 		// Debug output for diagnosis
 		t.Logf("FieldsToAdd: %+v", diffResult.FieldsToAdd)
@@ -414,7 +422,7 @@ func TestDownMigrationGeneration(t *testing.T) {
 			{Name: "id", DBName: "id", DataType: "uint", PrimaryKey: true, AutoIncrement: true},
 			{Name: "name", DBName: "name", DataType: "string"},
 		})
-		comparer := diff.NewSchemaComparer(nil)
+		comparer := diff.NewSchemaComparer(createTestDB(t))
 		diffResult := comparer.CompareTable(currentSchema, targetSchema)
 		// Debug output for diagnosis
 		t.Logf("FieldsToAdd: %+v", diffResult.FieldsToAdd)
@@ -445,7 +453,7 @@ func TestDownMigrationGeneration(t *testing.T) {
 			{Name: "name", DBName: "name", DataType: "string"},
 			{Name: "age", DBName: "age", DataType: "string"}, // type changed
 		})
-		comparer := diff.NewSchemaComparer(nil)
+		comparer := diff.NewSchemaComparer(createTestDB(t))
 		diffResult := comparer.CompareTable(currentSchema, targetSchema)
 		// Debug output for diagnosis
 		t.Logf("FieldsToAdd: %+v", diffResult.FieldsToAdd)

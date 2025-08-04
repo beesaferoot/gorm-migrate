@@ -275,4 +275,104 @@ func TestSchemaDiffWithModels(t *testing.T) {
 			t.Logf("Expected validation error: %v", err)
 		}
 	})
+
+	t.Run("Test Foreign Key and Index Changes Detection", func(t *testing.T) {
+		// Test that the schema comparison can detect foreign key and index changes
+		// This test focuses on the schema comparison logic without relying on database-specific features
+
+		// Create initial schema with basic models
+		err := db.AutoMigrate(&TestEstate{}, &TestApartment{})
+		require.NoError(t, err)
+
+		// Get current schema
+		currentSchema, err := comparer.GetCurrentSchema()
+		require.NoError(t, err)
+		assert.NotEmpty(t, currentSchema)
+
+		// Create enhanced models with additional indexes and foreign keys
+		type EnhancedEstate struct {
+			gorm.Model
+			Name      string `gorm:"uniqueIndex;not null"`
+			Address   string `gorm:"index"`
+			City      string `gorm:"index"`
+			State     string
+			Country   string
+			ManagerID uint       // New foreign key
+			Manager   TestTenant `gorm:"foreignKey:ManagerID"`
+			Active    bool       `gorm:"index"`
+		}
+
+		type EnhancedApartment struct {
+			gorm.Model
+			EstateID  uint
+			Estate    EnhancedEstate `gorm:"foreignKey:EstateID"`
+			Number    string         `gorm:"uniqueIndex"`
+			Floor     int            `gorm:"index"`
+			Price     float64        `gorm:"index"`
+			Available bool           `gorm:"index"`
+		}
+
+		// Get target schema with enhanced models
+		targetSchema, err := comparer.GetModelSchemas(&EnhancedEstate{}, &EnhancedApartment{}, &TestTenant{})
+		require.NoError(t, err)
+		assert.NotEmpty(t, targetSchema)
+
+		// Compare schemas
+		schemaDiff, err := comparer.CompareSchemas(currentSchema, targetSchema)
+		require.NoError(t, err)
+		require.NotNil(t, schemaDiff)
+
+		// Should detect new tables and modifications
+		assert.True(t, len(schemaDiff.TablesToCreate) > 0 || len(schemaDiff.TablesToModify) > 0,
+			"Should detect new tables or modifications")
+
+		// Verify that new tables are detected
+		var enhancedEstateFound, enhancedApartmentFound bool
+		for _, table := range schemaDiff.TablesToCreate {
+			switch table.Schema.Table {
+			case "enhanced_estates":
+				enhancedEstateFound = true
+				// Verify that new indexed fields are detected
+				var addressFound, cityFound, activeFound, managerIDFound bool
+				for _, field := range table.FieldsToAdd {
+					switch field.DBName {
+					case "address":
+						addressFound = true
+					case "city":
+						cityFound = true
+					case "active":
+						activeFound = true
+					case "manager_id":
+						managerIDFound = true
+					}
+				}
+				assert.True(t, addressFound, "Should detect address indexed field")
+				assert.True(t, cityFound, "Should detect city indexed field")
+				assert.True(t, activeFound, "Should detect active indexed field")
+				assert.True(t, managerIDFound, "Should detect manager_id foreign key field")
+			case "enhanced_apartments":
+				enhancedApartmentFound = true
+				// Verify that new indexed fields are detected
+				var numberFound, floorFound, priceFound, availableFound bool
+				for _, field := range table.FieldsToAdd {
+					switch field.DBName {
+					case "number":
+						numberFound = true
+					case "floor":
+						floorFound = true
+					case "price":
+						priceFound = true
+					case "available":
+						availableFound = true
+					}
+				}
+				assert.True(t, numberFound, "Should detect number unique indexed field")
+				assert.True(t, floorFound, "Should detect floor indexed field")
+				assert.True(t, priceFound, "Should detect price indexed field")
+				assert.True(t, availableFound, "Should detect available indexed field")
+			}
+		}
+		assert.True(t, enhancedEstateFound, "Should detect new enhanced estate table")
+		assert.True(t, enhancedApartmentFound, "Should detect new enhanced apartment table")
+	})
 }

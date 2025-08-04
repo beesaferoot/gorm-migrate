@@ -64,19 +64,16 @@ func NewSchemaComparer(db *gorm.DB) *SchemaComparer {
 
 // Compare compares the current database schema with the provided models
 func (c *SchemaComparer) Compare(models ...interface{}) (*SchemaDiff, error) {
-	// Get current database schema
 	currentSchema, err := c.getCurrentSchema()
 	if err != nil {
 		return nil, err
 	}
 
-	// Get model schemas
 	modelSchemas, err := c.GetModelSchemas(models...)
 	if err != nil {
 		return nil, err
 	}
 
-	// Compare schemas
 	diff, err := c.compareSchemas(currentSchema, modelSchemas)
 	if err != nil {
 		return nil, err

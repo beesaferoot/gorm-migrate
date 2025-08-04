@@ -5,6 +5,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"gorm.io/gorm/schema"
 
@@ -44,6 +45,78 @@ type TestUserWithRenamedField struct {
 	UserAge int // Renamed from Age to UserAge
 }
 
+// TestUserWithNewIndexes is a test model for testing index changes
+type TestUserWithNewIndexes struct {
+	gorm.Model
+	Name     string
+	Age      int
+	Email    string `gorm:"uniqueIndex"`
+	Status   string `gorm:"index"`
+	Priority int    `gorm:"index"` // New indexed field
+	Active   bool   `gorm:"index"` // New indexed field
+}
+
+// TestUserWithNewFK is a test model for testing foreign key changes
+type TestUserWithNewFK struct {
+	gorm.Model
+	Name    string
+	Age     int
+	Email   string    `gorm:"uniqueIndex"`
+	Status  string    `gorm:"index"`
+	GroupID uint      // New foreign key field
+	Group   TestGroup `gorm:"foreignKey:GroupID"`
+}
+
+// TestGroup is a test model for testing new foreign key relationships
+type TestGroup struct {
+	gorm.Model
+	Name        string `gorm:"uniqueIndex"`
+	Description string
+}
+
+// TestCategory is a test model for testing relationships
+type TestCategory struct {
+	gorm.Model
+	Name        string `gorm:"uniqueIndex"`
+	Description string
+}
+
+// TestProduct is a test model for testing relationships
+type TestProduct struct {
+	gorm.Model
+	Name        string
+	Description string
+	CategoryID  uint
+	Category    TestCategory `gorm:"foreignKey:CategoryID"`
+}
+
+// TestEnhancedProduct is a test model with multiple foreign keys and indexes
+type TestEnhancedProduct struct {
+	gorm.Model
+	Name        string `gorm:"index"`
+	Description string
+	CategoryID  uint
+	Category    TestCategory `gorm:"foreignKey:CategoryID"`
+	BrandID     uint         // New foreign key
+	Brand       TestBrand    `gorm:"foreignKey:BrandID"`
+	Price       float64      `gorm:"index"`
+	Active      bool         `gorm:"index"`
+}
+
+// TestBrand is a test model for testing complex relationships
+type TestBrand struct {
+	gorm.Model
+	Name        string `gorm:"uniqueIndex"`
+	Description string
+}
+
+// createTestDB creates a test database for unit tests
+func createTestDB(t *testing.T) *gorm.DB {
+	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+	require.NoError(t, err)
+	return db
+}
+
 // TestSchemaComparerUnit tests the core schema comparison logic
 func TestSchemaComparerUnit(t *testing.T) {
 	t.Run("No Changes - Identical Schemas", func(t *testing.T) {
@@ -60,7 +133,11 @@ func TestSchemaComparerUnit(t *testing.T) {
 			{Name: "age", DBName: "age", DataType: "int"},
 		})
 
-		comparer := diff.NewSchemaComparer(nil)
+		// Create a mock database for unit tests
+		db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+		require.NoError(t, err)
+
+		comparer := diff.NewSchemaComparer(db)
 		tableDiff := comparer.CompareTable(schema1, schema2)
 
 		assert.True(t, tableDiff.IsEmpty(), "Should detect no changes between identical schemas")
@@ -83,7 +160,7 @@ func TestSchemaComparerUnit(t *testing.T) {
 			{Name: "age", DBName: "age", DataType: "int"}, // New field
 		})
 
-		comparer := diff.NewSchemaComparer(nil)
+		comparer := diff.NewSchemaComparer(createTestDB(t))
 		tableDiff := comparer.CompareTable(currentSchema, targetSchema)
 
 		assert.False(t, tableDiff.IsEmpty(), "Should detect changes when adding new field")
@@ -106,37 +183,13 @@ func TestSchemaComparerUnit(t *testing.T) {
 			{Name: "age", DBName: "age", DataType: "int64"}, // Changed from int to int64
 		})
 
-		comparer := diff.NewSchemaComparer(nil)
+		comparer := diff.NewSchemaComparer(createTestDB(t))
 		tableDiff := comparer.CompareTable(currentSchema, targetSchema)
 
 		// With our normalization, int and int64 should be treated as equivalent
 		assert.True(t, tableDiff.IsEmpty(), "Should not detect changes for equivalent types")
 		assert.Empty(t, tableDiff.FieldsToModify)
 	})
-
-	// t.Run("Remove Field - Should Be Ignored", func(t *testing.T) {
-	// 	// Current schema (database) - has extra field
-	// 	currentSchema := createTestSchema("users", []*schema.Field{
-	// 		{Name: "id", DBName: "id", DataType: "uint", PrimaryKey: true, AutoIncrement: true},
-	// 		{Name: "name", DBName: "name", DataType: "string"},
-	// 		{Name: "age", DBName: "age", DataType: "int"},
-	// 		{Name: "extra", DBName: "extra", DataType: "string"}, // Extra field in DB
-	// 	})
-
-	// 	// Target schema (model) - doesn't have the extra field
-	// 	targetSchema := createTestSchema("users", []*schema.Field{
-	// 		{Name: "id", DBName: "id", DataType: "uint", PrimaryKey: true, AutoIncrement: true},
-	// 		{Name: "name", DBName: "name", DataType: "string"},
-	// 		{Name: "age", DBName: "age", DataType: "int"},
-	// 	})
-
-	// 	comparer := diff.NewSchemaComparer(nil)
-	// 	tableDiff := comparer.CompareTable(currentSchema, targetSchema)
-
-	// 	// Should ignore orphaned columns (fields to drop)
-	// 	assert.True(t, tableDiff.IsEmpty(), "Should ignore orphaned columns in database")
-	// 	assert.Empty(t, tableDiff.FieldsToDrop)
-	// })
 
 	t.Run("Type Normalization - Equivalent Types", func(t *testing.T) {
 		testCases := []struct {
@@ -165,7 +218,7 @@ func TestSchemaComparerUnit(t *testing.T) {
 					{Name: "id", DBName: "id", DataType: schema.DataType(tc.type2), PrimaryKey: true},
 				})
 
-				comparer := diff.NewSchemaComparer(nil)
+				comparer := diff.NewSchemaComparer(createTestDB(t))
 				tableDiff := comparer.CompareTable(currentSchema, targetSchema)
 
 				if tc.expected {
@@ -190,7 +243,7 @@ func TestSchemaComparerUnit(t *testing.T) {
 			{Name: "Name", DBName: "name", DataType: "string"},
 		})
 
-		comparer := diff.NewSchemaComparer(nil)
+		comparer := diff.NewSchemaComparer(createTestDB(t))
 		tableDiff := comparer.CompareTable(currentSchema, targetSchema)
 
 		assert.True(t, tableDiff.IsEmpty(), "Should handle case-insensitive field names")
@@ -206,11 +259,132 @@ func TestSchemaComparerUnit(t *testing.T) {
 			{Name: "id", DBName: "id", DataType: "uint", PrimaryKey: true, AutoIncrement: true, NotNull: true},
 		})
 
-		comparer := diff.NewSchemaComparer(nil)
+		comparer := diff.NewSchemaComparer(createTestDB(t))
 		tableDiff := comparer.CompareTable(currentSchema, targetSchema)
 
 		// Should be considered equivalent due to type normalization
 		assert.True(t, tableDiff.IsEmpty(), "Primary key fields should be normalized correctly")
+	})
+
+	t.Run("Index Changes Detection", func(t *testing.T) {
+		// Current schema with basic fields
+		currentSchema := createTestSchema("users", []*schema.Field{
+			{Name: "id", DBName: "id", DataType: "uint", PrimaryKey: true, AutoIncrement: true},
+			{Name: "name", DBName: "name", DataType: "string"},
+			{Name: "age", DBName: "age", DataType: "int"},
+		})
+
+		// Target schema with additional indexed fields
+		targetSchema := createTestSchema("users", []*schema.Field{
+			{Name: "id", DBName: "id", DataType: "uint", PrimaryKey: true, AutoIncrement: true},
+			{Name: "name", DBName: "name", DataType: "string"},
+			{Name: "age", DBName: "age", DataType: "int"},
+			{Name: "email", DBName: "email", DataType: "string", Unique: true},
+			{Name: "status", DBName: "status", DataType: "string"},
+			{Name: "priority", DBName: "priority", DataType: "int"},
+			{Name: "active", DBName: "active", DataType: "bool"},
+		})
+
+		comparer := diff.NewSchemaComparer(createTestDB(t))
+		tableDiff := comparer.CompareTable(currentSchema, targetSchema)
+
+		assert.False(t, tableDiff.IsEmpty(), "Should detect changes when adding indexed fields")
+		assert.Len(t, tableDiff.FieldsToAdd, 4, "Should have 4 new fields (email, status, priority, active)")
+
+		// Verify new fields are detected
+		var emailFound, statusFound, priorityFound, activeFound bool
+		for _, field := range tableDiff.FieldsToAdd {
+			switch field.DBName {
+			case "email":
+				emailFound = true
+			case "status":
+				statusFound = true
+			case "priority":
+				priorityFound = true
+			case "active":
+				activeFound = true
+			}
+		}
+		assert.True(t, emailFound, "Should detect email field")
+		assert.True(t, statusFound, "Should detect status field")
+		assert.True(t, priorityFound, "Should detect priority field")
+		assert.True(t, activeFound, "Should detect active field")
+	})
+
+	t.Run("Foreign Key Changes Detection", func(t *testing.T) {
+		// Current schema with basic fields
+		currentSchema := createTestSchema("users", []*schema.Field{
+			{Name: "id", DBName: "id", DataType: "uint", PrimaryKey: true, AutoIncrement: true},
+			{Name: "name", DBName: "name", DataType: "string"},
+			{Name: "age", DBName: "age", DataType: "int"},
+		})
+
+		// Target schema with new foreign key field
+		targetSchema := createTestSchema("users", []*schema.Field{
+			{Name: "id", DBName: "id", DataType: "uint", PrimaryKey: true, AutoIncrement: true},
+			{Name: "name", DBName: "name", DataType: "string"},
+			{Name: "age", DBName: "age", DataType: "int"},
+			{Name: "group_id", DBName: "group_id", DataType: "uint"},
+		})
+
+		comparer := diff.NewSchemaComparer(createTestDB(t))
+		tableDiff := comparer.CompareTable(currentSchema, targetSchema)
+
+		assert.False(t, tableDiff.IsEmpty(), "Should detect changes when adding foreign key field")
+		assert.Len(t, tableDiff.FieldsToAdd, 1, "Should have 1 new field (group_id)")
+
+		// Verify foreign key field is detected
+		var groupIDFound bool
+		for _, field := range tableDiff.FieldsToAdd {
+			if field.DBName == "group_id" {
+				groupIDFound = true
+				break
+			}
+		}
+		assert.True(t, groupIDFound, "Should detect group_id foreign key field")
+	})
+
+	t.Run("Complex Index and Foreign Key Changes", func(t *testing.T) {
+		// Current schema with basic product
+		currentSchema := createTestSchema("products", []*schema.Field{
+			{Name: "id", DBName: "id", DataType: "uint", PrimaryKey: true, AutoIncrement: true},
+			{Name: "name", DBName: "name", DataType: "string"},
+			{Name: "description", DBName: "description", DataType: "string"},
+			{Name: "category_id", DBName: "category_id", DataType: "uint"},
+		})
+
+		// Target schema with enhanced product (additional indexes and foreign keys)
+		targetSchema := createTestSchema("products", []*schema.Field{
+			{Name: "id", DBName: "id", DataType: "uint", PrimaryKey: true, AutoIncrement: true},
+			{Name: "name", DBName: "name", DataType: "string"},
+			{Name: "description", DBName: "description", DataType: "string"},
+			{Name: "category_id", DBName: "category_id", DataType: "uint"},
+			{Name: "brand_id", DBName: "brand_id", DataType: "uint"},
+			{Name: "price", DBName: "price", DataType: "float64"},
+			{Name: "active", DBName: "active", DataType: "bool"},
+		})
+
+		comparer := diff.NewSchemaComparer(createTestDB(t))
+		tableDiff := comparer.CompareTable(currentSchema, targetSchema)
+
+		assert.False(t, tableDiff.IsEmpty(), "Should detect changes when adding indexes and foreign keys")
+		assert.Len(t, tableDiff.FieldsToAdd, 3, "Should have 3 new fields (brand_id, price, active)")
+
+		// Verify new fields are detected
+		var brandIDFound, priceFound, activeFound bool
+		for _, field := range tableDiff.FieldsToAdd {
+			switch field.DBName {
+			case "brand_id":
+				brandIDFound = true
+			case "price":
+				priceFound = true
+			case "active":
+				activeFound = true
+			}
+		}
+		assert.True(t, brandIDFound, "Should detect brand_id foreign key field")
+		assert.True(t, priceFound, "Should detect price indexed field")
+		assert.True(t, activeFound, "Should detect active indexed field")
 	})
 }
 
@@ -228,7 +402,7 @@ func TestSchemaDiffUnit(t *testing.T) {
 			}),
 		}
 
-		comparer := diff.NewSchemaComparer(nil)
+		comparer := diff.NewSchemaComparer(createTestDB(t))
 		schemaDiff, err := comparer.CompareSchemas(currentSchema, targetSchema)
 		require.NoError(t, err)
 
@@ -255,7 +429,7 @@ func TestSchemaDiffUnit(t *testing.T) {
 			}),
 		}
 
-		comparer := diff.NewSchemaComparer(nil)
+		comparer := diff.NewSchemaComparer(createTestDB(t))
 		schemaDiff, err := comparer.CompareSchemas(currentSchema, targetSchema)
 		require.NoError(t, err)
 
@@ -280,7 +454,7 @@ func TestSchemaDiffUnit(t *testing.T) {
 			}),
 		}
 
-		comparer := diff.NewSchemaComparer(nil)
+		comparer := diff.NewSchemaComparer(createTestDB(t))
 		schemaDiff, err := comparer.CompareSchemas(currentSchema, targetSchema)
 		require.NoError(t, err)
 

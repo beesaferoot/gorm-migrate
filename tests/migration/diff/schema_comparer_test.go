@@ -5,13 +5,22 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gorm.io/driver/sqlite"
+	"gorm.io/gorm"
 	"gorm.io/gorm/schema"
 
 	"github.com/beesaferoot/gorm-schema/migration/diff"
 )
 
+// createTestDBForSchemaComparer creates a test database for schema comparer unit tests
+func createTestDBForSchemaComparer(t *testing.T) *gorm.DB {
+	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+	require.NoError(t, err)
+	return db
+}
+
 func TestSchemaComparer_CompareSchemas_Unit(t *testing.T) {
-	comparer := &diff.SchemaComparer{}
+	comparer := diff.NewSchemaComparer(createTestDBForSchemaComparer(t))
 
 	currentSchema := map[string]*schema.Schema{
 		"users": {
@@ -47,7 +56,7 @@ func TestSchemaComparer_CompareSchemas_Unit(t *testing.T) {
 }
 
 func TestSchemaComparer_CompareSchemas_NoChanges(t *testing.T) {
-	comparer := &diff.SchemaComparer{}
+	comparer := diff.NewSchemaComparer(createTestDBForSchemaComparer(t))
 
 	currentSchema := map[string]*schema.Schema{
 		"users": {
@@ -82,7 +91,7 @@ func TestSchemaComparer_CompareSchemas_NoChanges(t *testing.T) {
 }
 
 func TestSchemaComparer_CompareSchemas_NewTable(t *testing.T) {
-	comparer := &diff.SchemaComparer{}
+	comparer := diff.NewSchemaComparer(createTestDBForSchemaComparer(t))
 
 	currentSchema := map[string]*schema.Schema{}
 
@@ -106,7 +115,7 @@ func TestSchemaComparer_CompareSchemas_NewTable(t *testing.T) {
 }
 
 func TestSchemaComparer_CompareSchemas_DropTable(t *testing.T) {
-	comparer := &diff.SchemaComparer{}
+	comparer := diff.NewSchemaComparer(createTestDBForSchemaComparer(t))
 
 	currentSchema := map[string]*schema.Schema{
 		"users": {
@@ -130,7 +139,7 @@ func TestSchemaComparer_CompareSchemas_DropTable(t *testing.T) {
 }
 
 func TestSchemaComparer_CompareSchemas_RemoveColumn(t *testing.T) {
-	comparer := &diff.SchemaComparer{}
+	comparer := diff.NewSchemaComparer(createTestDBForSchemaComparer(t))
 
 	currentSchema := map[string]*schema.Schema{
 		"users": {
@@ -165,7 +174,7 @@ func TestSchemaComparer_CompareSchemas_RemoveColumn(t *testing.T) {
 }
 
 func TestSchemaComparer_CompareSchemas_ModifyColumn(t *testing.T) {
-	comparer := &diff.SchemaComparer{}
+	comparer := diff.NewSchemaComparer(createTestDBForSchemaComparer(t))
 
 	currentSchema := map[string]*schema.Schema{
 		"users": {
@@ -201,7 +210,7 @@ func TestSchemaComparer_CompareSchemas_ModifyColumn(t *testing.T) {
 }
 
 func TestSchemaComparer_CompareSchemas_IndexChangeOnExistingTable_Ignored(t *testing.T) {
-	comparer := &diff.SchemaComparer{}
+	comparer := diff.NewSchemaComparer(createTestDBForSchemaComparer(t))
 
 	currentSchema := map[string]*schema.Schema{
 		"users": {
@@ -231,7 +240,7 @@ func TestSchemaComparer_CompareSchemas_IndexChangeOnExistingTable_Ignored(t *tes
 }
 
 func TestSchemaComparer_CompareSchemas_IndexChangeOnNewTable_Allowed(t *testing.T) {
-	comparer := &diff.SchemaComparer{}
+	comparer := diff.NewSchemaComparer(createTestDBForSchemaComparer(t))
 
 	currentSchema := map[string]*schema.Schema{}
 	targetSchema := map[string]*schema.Schema{

@@ -76,7 +76,6 @@ func (c *SchemaComparer) GetModelSchemas(models ...interface{}) (map[string]*sch
 		relationships := schema.Relationships{}
 		originalRel := originalRelationships[tableName]
 
-		// BelongsTo relationships
 		for _, rel := range originalRel.BelongsTo {
 			// Build a map of DB columns for this schema
 			dbColumns := make(map[string]*schema.Field)
@@ -122,7 +121,7 @@ func (c *SchemaComparer) GetModelSchemas(models ...interface{}) (map[string]*sch
 					// Create a new relationship with the correct foreign key field and referenced schema
 					newRel := &schema.Relationship{
 						Type:        schema.BelongsTo,
-						Field:       fkField,      
+						Field:       fkField,
 						Schema:      referencedSchema,
 						FieldSchema: rel.FieldSchema,
 					}
@@ -133,21 +132,18 @@ func (c *SchemaComparer) GetModelSchemas(models ...interface{}) (map[string]*sch
 			}
 		}
 
-		// HasMany relationships
 		for _, rel := range originalRel.HasMany {
 			if rel.Field != nil {
 				relationships.HasMany = append(relationships.HasMany, rel)
 			}
 		}
 
-		// HasOne relationships
 		for _, rel := range originalRel.HasOne {
 			if rel.Field != nil {
 				relationships.HasOne = append(relationships.HasOne, rel)
 			}
 		}
 
-		// Many2Many relationships
 		for _, rel := range originalRel.Many2Many {
 			if rel.Field != nil {
 				relationships.Many2Many = append(relationships.Many2Many, rel)
@@ -210,7 +206,7 @@ func (c *SchemaComparer) getCurrentSchema() (map[string]*schema.Schema, error) {
 		return nil, fmt.Errorf("invalid db instance")
 	}
 
-	migrator := db.Migrator()
+	migrator := NewSchemaMigrator(db)
 
 	tables, err := migrator.GetTables()
 	if err != nil {
@@ -257,11 +253,43 @@ func (c *SchemaComparer) getCurrentSchema() (map[string]*schema.Schema, error) {
 			fields = append(fields, field)
 		}
 
+		// Get indexes from the database
+		indexes, err := migrator.GetIndexes(tableName)
+		if err != nil {
+			// Log error but continue - indexes are not critical for basic schema comparison
+			if debugDiffOutput {
+				fmt.Printf("[DEBUG] Failed to get indexes for table %s: %v\n", tableName, err)
+			}
+		}
+
+		// Get relationships from the database
+		relationships, err := migrator.GetRelationships(tableName)
+		if err != nil {
+			// Log error but continue - relationships are not critical for basic schema comparison
+			if debugDiffOutput {
+				fmt.Printf("[DEBUG] Failed to get relationships for table %s: %v\n", tableName, err)
+			}
+		}
+
+		// Create relationships structure
+		relationshipsStruct := schema.Relationships{}
+		relationshipsStruct.BelongsTo = append(relationshipsStruct.BelongsTo, relationships...)
+
 		parsedSchema := &schema.Schema{
 			Name:          toExportedFieldName(tableName),
 			Table:         tableName,
 			Fields:        fields,
-			Relationships: schema.Relationships{},
+			Relationships: relationshipsStruct,
+		}
+
+		// Store database indexes and relationships for comparison
+		// We'll use a custom approach to compare these later
+		if len(indexes) > 0 || len(relationships) > 0 {
+			// For now, we'll store this information in the schema's comment field as a marker
+			// In a more sophisticated implementation, we could extend the schema structure
+			if debugDiffOutput {
+				fmt.Printf("[DEBUG] Found %d indexes and %d relationships for table %s\n", len(indexes), len(relationships), tableName)
+			}
 		}
 
 		schemas[tableName] = parsedSchema
@@ -401,31 +429,61 @@ func (c *SchemaComparer) compareTable(current, target *schema.Schema) TableDiff 
 		}
 	}
 
-	// Only include index diffs for new tables (when current.Fields is empty)
-	if len(current.Fields) == 0 {
-		// Process indexes for new tables
-		currentIndexes := make(map[string]*schema.Index)
-		for _, idx := range current.ParseIndexes() {
-			currentIndexes[idx.Name] = idx
+	currentIndexes := make(map[string]*schema.Index)
+	for _, idx := range current.ParseIndexes() {
+		currentIndexes[idx.Name] = idx
+	}
+	targetIndexes := make(map[string]*schema.Index)
+	for _, idx := range target.ParseIndexes() {
+		targetIndexes[idx.Name] = idx
+	}
+
+	for name, targetIdx := range targetIndexes {
+		if _, exists := currentIndexes[name]; !exists {
+			diff.IndexesToAdd = append(diff.IndexesToAdd, targetIdx)
+		} else if !indexesEqual(currentIndexes[name], targetIdx) {
+			diff.IndexesToModify = append(diff.IndexesToModify, targetIdx)
 		}
-		targetIndexes := make(map[string]*schema.Index)
-		for _, idx := range target.ParseIndexes() {
-			targetIndexes[idx.Name] = idx
-		}
-		for name, targetIdx := range targetIndexes {
-			if _, exists := currentIndexes[name]; !exists {
-				diff.IndexesToAdd = append(diff.IndexesToAdd, targetIdx)
-			} else if !indexesEqual(currentIndexes[name], targetIdx) {
-				diff.IndexesToModify = append(diff.IndexesToModify, targetIdx)
+	}
+
+	if len(current.Fields) > 0 {
+		for name, currentIdx := range currentIndexes {
+			if _, exists := targetIndexes[name]; !exists {
+				diff.IndexesToDrop = append(diff.IndexesToDrop, currentIdx)
 			}
 		}
+	}
 
-		// Process foreign key relationships for new tables
-		for _, rel := range target.Relationships.BelongsTo {
-			if rel.Field != nil && rel.Schema != nil {
-				// Only add foreign keys that reference fields in the same table
-				// and have a valid referenced schema
-				diff.ForeignKeysToAdd = append(diff.ForeignKeysToAdd, rel)
+	currentRelationships := make(map[string]*schema.Relationship)
+	for _, rel := range current.Relationships.BelongsTo {
+		if rel.Field != nil {
+			column_rel_ident := fmt.Sprintf("%s_%s", rel.Field.Schema.Table, rel.References[0].ForeignKey.DBName)
+			currentRelationships[column_rel_ident] = rel
+		}
+	}
+
+	targetRelationships := make(map[string]*schema.Relationship)
+	for _, rel := range target.Relationships.BelongsTo {
+		if rel.Field != nil && len(rel.References) > 0 {
+			column_rel_ident := fmt.Sprintf("%s_%s", rel.Field.Schema.Table, rel.References[0].ForeignKey.DBName)
+			targetRelationships[column_rel_ident] = rel
+		}
+	}
+
+	for fieldName, targetRel := range targetRelationships {
+		if _, exists := currentRelationships[fieldName]; !exists {
+			fmt.Printf("column name %s fk does not exist\n", fieldName)
+			diff.ForeignKeysToAdd = append(diff.ForeignKeysToAdd, targetRel)
+		} else if !relationshipsEqual(currentRelationships[fieldName], targetRel) {
+			fmt.Printf("column name %s fk rel not equal to target\n", fieldName)
+			diff.ForeignKeysToAdd = append(diff.ForeignKeysToAdd, targetRel)
+		}
+	}
+
+	if len(current.Fields) > 0 {
+		for fieldName, currentRel := range currentRelationships {
+			if _, exists := targetRelationships[fieldName]; !exists {
+				diff.ForeignKeysToDrop = append(diff.ForeignKeysToDrop, currentRel)
 			}
 		}
 	}
@@ -439,7 +497,6 @@ func normalizeFieldMetadata(field *schema.Field) *schema.Field {
 		return nil
 	}
 
-	// Create a copy of the field with normalized metadata
 	normalized := &schema.Field{
 		Name:            field.Name,
 		DBName:          field.DBName,
@@ -462,12 +519,10 @@ func normalizeFieldMetadata(field *schema.Field) *schema.Field {
 
 // fieldsEqual compares two *schema.Field for relevant diff purposes
 func fieldsEqual(a, b *schema.Field) bool {
-	// Normalize field names case-insensitively
 	if !strings.EqualFold(a.DBName, b.DBName) {
 		return false
 	}
 
-	// Compare normalized data types
 	if normalizeDBType(a.DataType) != normalizeDBType(b.DataType) {
 		return false
 	}
@@ -482,17 +537,14 @@ func fieldsEqual(a, b *schema.Field) bool {
 		return false
 	}
 
-	// Normalize and compare default values
 	if normalizeDefaultValue(a.DefaultValue) != normalizeDefaultValue(b.DefaultValue) {
 		return false
 	}
 
-	// Compare auto-increment status
 	if a.AutoIncrement != b.AutoIncrement {
 		return false
 	}
 
-	// For non-primary keys, compare nullability
 	if !a.PrimaryKey && a.NotNull != b.NotNull {
 		return false
 	}
@@ -503,15 +555,12 @@ func fieldsEqual(a, b *schema.Field) bool {
 // normalizeDBType normalizes Go/GORM/Postgres types for DB comparison
 func normalizeDBType(dt schema.DataType) string {
 	dtStr := strings.ToLower(string(dt))
-	// Normalize integer types
 	if dtStr == "int" || dtStr == "int32" || dtStr == "int4" || dtStr == "int64" || dtStr == "int8" || dtStr == "uint" || dtStr == "bigint" {
 		return "bigint"
 	}
-	// Normalize float/decimal types
 	if dtStr == "float64" || dtStr == "float32" || dtStr == "float" || dtStr == "real" || dtStr == "numeric" || dtStr == "decimal" || strings.HasPrefix(dtStr, "decimal(") || dtStr == "float8" || dtStr == "double precision" {
 		return "decimal"
 	}
-	// Normalize string types
 	if dtStr == "string" || dtStr == "varchar" || dtStr == "text" || dtStr == "character varying" {
 		return "varchar"
 	}
@@ -533,16 +582,13 @@ func normalizeDefaultValue(dv string) string {
 		return ""
 	}
 
-	// Remove quotes and normalize common defaults
 	dv = strings.Trim(dv, "'\"")
 	dv = strings.ToLower(dv)
 
-	// Normalize auto-increment sequences
 	if strings.HasPrefix(dv, "nextval") {
 		return "auto_increment"
 	}
 
-	// Normalize common default values
 	switch dv {
 	case "null", "default null":
 		return ""
@@ -608,7 +654,6 @@ func toExportedFieldName(name string) string {
 	if name == "" {
 		return "Field"
 	}
-	// Split by _ and capitalize each part
 	result := ""
 	capitalizeNext := true
 	for _, r := range name {
@@ -675,4 +720,25 @@ func normalizeFieldName(name string) string {
 		}
 	}
 	return string(result)
+}
+
+func relationshipsEqual(source, target *schema.Relationship) bool {
+	if source == nil || target == nil {
+		return false
+	}
+	if source.Field == nil || target.Field == nil {
+		return false
+	}
+	if source.Field.Schema == nil || target.Field.Schema == nil {
+		return false
+	}
+
+	if source.Field.Schema.Table != target.Field.Schema.Table {
+		return false
+	}
+
+	if len(source.References) != len(target.References) {
+		return false
+	}
+	return true
 }

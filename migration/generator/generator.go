@@ -536,7 +536,7 @@ func (g *Generator) generateCreateTableSQL(table diff.TableDiff) string {
 			fkDef := fmt.Sprintf("CONSTRAINT fk_%s_%s_fkey FOREIGN KEY (%s) REFERENCES %s(id) ON DELETE CASCADE",
 				table.Schema.Table,
 				r.ForeignKey.DBName,
-				quoteIdentifier(r.ForeignKey.DBName),
+				quoteIdentifier(fk.References[0].ForeignKey.DBName),
 				quoteIdentifier(r.PrimaryKey.Schema.Table))
 			tableConstraints = append(tableConstraints, "    "+fkDef)
 		}
@@ -582,16 +582,6 @@ func (g *Generator) generateCreateTableSQL(table diff.TableDiff) string {
 	return strings.Join(stmts, "\n")
 }
 
-// hasPrimaryKey checks if the table has a primary key column
-func hasPrimaryKey(table diff.TableDiff) bool {
-	for _, col := range table.FieldsToAdd {
-		if col.PrimaryKey {
-			return true
-		}
-	}
-	return false
-}
-
 // generateModifyTableSQL generates the SQL for modifying a table with proper formatting
 func (g *Generator) generateModifyTableSQL(table diff.TableDiff) []string {
 	var statements []string
@@ -629,13 +619,14 @@ func (g *Generator) generateModifyTableSQL(table diff.TableDiff) []string {
 
 	// Add foreign keys with proper formatting
 	for _, fk := range table.ForeignKeysToAdd {
-		if fk.Field != nil && fk.Schema != nil {
+		if fk.Field != nil && fk.Schema != nil && len(fk.References) > 0 {
 			statements = append(statements, fmt.Sprintf("ALTER TABLE %s ADD CONSTRAINT fk_%s_%s_fkey FOREIGN KEY (%s) REFERENCES %s(id) ON DELETE CASCADE;",
 				quoteIdentifier(table.Schema.Table),
 				table.Schema.Table,
-				fk.Field.DBName,
-				quoteIdentifier(fk.Field.DBName),
-				quoteIdentifier(fk.Schema.Table)))
+				fk.References[0].ForeignKey.DBName,
+				quoteIdentifier(fk.References[0].ForeignKey.DBName),
+				quoteIdentifier(fk.References[0].PrimaryKey.Schema.Table)),
+			)
 		}
 	}
 

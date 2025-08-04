@@ -41,6 +41,14 @@ func (m *SchemaMigrator) GetIndexes(tableName string) ([]*schema.Index, error) {
 		return []*schema.Index{}, nil
 	}
 
+	if m.db == nil {
+		return []*schema.Index{}, nil
+	}
+
+	if m.db.Dialector.Name() != "postgres" {
+		return []*schema.Index{}, nil
+	}
+
 	var indexes []*schema.Index
 
 	// Query to get index information from PostgreSQL system catalogs
@@ -104,10 +112,17 @@ func (m *SchemaMigrator) GetIndexes(tableName string) ([]*schema.Index, error) {
 	return indexes, nil
 }
 
-
 func (m *SchemaMigrator) GetRelationships(tableName string) ([]*schema.Relationship, error) {
 	// Handle empty table name
 	if tableName == "" {
+		return []*schema.Relationship{}, nil
+	}
+
+	if m.db == nil {
+		return []*schema.Relationship{}, nil
+	}
+
+	if m.db.Dialector.Name() != "postgres" {
 		return []*schema.Relationship{}, nil
 	}
 

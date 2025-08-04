@@ -180,7 +180,7 @@ func TestPostgreSQLSchemaMigrator_GetIndexes(t *testing.T) {
 		err := db.AutoMigrate(&TestPostgreSQLUser{})
 		require.NoError(t, err)
 
-		indexes, err := migrator.GetIndexes("test_postgresql_users")
+		indexes, err := migrator.GetIndexes("test_postgre_sql_users")
 		require.NoError(t, err)
 		assert.NotEmpty(t, indexes, "Should return indexes for existing table")
 
@@ -197,7 +197,7 @@ func TestPostgreSQLSchemaMigrator_GetIndexes(t *testing.T) {
 
 	t.Run("GetIndexes on Table with Unique Indexes", func(t *testing.T) {
 		// The TestPostgreSQLUser model has unique indexes on Name and Email
-		indexes, err := migrator.GetIndexes("test_postgresql_users")
+		indexes, err := migrator.GetIndexes("test_postgre_sql_users")
 		require.NoError(t, err)
 
 		// Count unique indexes
@@ -212,7 +212,7 @@ func TestPostgreSQLSchemaMigrator_GetIndexes(t *testing.T) {
 
 	t.Run("GetIndexes on Table with Regular Indexes", func(t *testing.T) {
 		// The TestPostgreSQLUser model has regular indexes on Age and Status
-		indexes, err := migrator.GetIndexes("test_postgresql_users")
+		indexes, err := migrator.GetIndexes("test_postgre_sql_users")
 		require.NoError(t, err)
 
 		// Count regular indexes
@@ -230,7 +230,7 @@ func TestPostgreSQLSchemaMigrator_GetIndexes(t *testing.T) {
 		err := db.AutoMigrate(&TestPostgreSQLComplexIndexes{})
 		require.NoError(t, err)
 
-		indexes, err := migrator.GetIndexes("test_postgresql_complex_indexes")
+		indexes, err := migrator.GetIndexes("test_postgre_sql_complex_indexes")
 		require.NoError(t, err)
 		assert.NotEmpty(t, indexes, "Should return indexes for table with complex indexes")
 
@@ -268,7 +268,7 @@ func TestPostgreSQLSchemaMigrator_GetRelationships(t *testing.T) {
 		err := db.AutoMigrate(&TestPostgreSQLCategory{}, &TestPostgreSQLProduct{})
 		require.NoError(t, err)
 
-		relationships, err := migrator.GetRelationships("test_postgresql_products")
+		relationships, err := migrator.GetRelationships("test_postgre_sql_products")
 		require.NoError(t, err)
 		assert.NotEmpty(t, relationships, "Should return relationships for table with foreign keys")
 
@@ -277,7 +277,7 @@ func TestPostgreSQLSchemaMigrator_GetRelationships(t *testing.T) {
 		for _, rel := range relationships {
 			if rel.Field.DBName == "category_id" {
 				categoryRelationshipFound = true
-				assert.Equal(t, "test_postgresql_categories", rel.Schema.Table, "Referenced table should be test_postgresql_categories")
+				assert.Equal(t, "test_postgre_sql_categories", rel.Schema.Table, "Referenced table should be test_postgre_sql_categories")
 				break
 			}
 		}
@@ -289,7 +289,7 @@ func TestPostgreSQLSchemaMigrator_GetRelationships(t *testing.T) {
 		err := db.AutoMigrate(&TestPostgreSQLUser{}, &TestPostgreSQLProduct{}, &TestPostgreSQLOrder{})
 		require.NoError(t, err)
 
-		relationships, err := migrator.GetRelationships("test_postgresql_orders")
+		relationships, err := migrator.GetRelationships("test_postgre_sql_orders")
 		require.NoError(t, err)
 		assert.NotEmpty(t, relationships, "Should return relationships for table with multiple foreign keys")
 
@@ -298,11 +298,11 @@ func TestPostgreSQLSchemaMigrator_GetRelationships(t *testing.T) {
 		for _, rel := range relationships {
 			if rel.Field.DBName == "user_id" {
 				userRelationshipFound = true
-				assert.Equal(t, "test_postgresql_users", rel.Schema.Table, "User relationship should reference test_postgresql_users")
+				assert.Equal(t, "test_postgre_sql_users", rel.Schema.Table, "User relationship should reference test_postgre_sql_users")
 			}
 			if rel.Field.DBName == "product_id" {
 				productRelationshipFound = true
-				assert.Equal(t, "test_postgresql_products", rel.Schema.Table, "Product relationship should reference test_postgresql_products")
+				assert.Equal(t, "test_postgre_sql_products", rel.Schema.Table, "Product relationship should reference test_postgre_sql_products")
 			}
 		}
 		assert.True(t, userRelationshipFound, "User relationship should be found")
@@ -354,7 +354,7 @@ func TestPostgreSQLSchemaDiff_IndexesAndRelationships(t *testing.T) {
 		// Find the table with indexes
 		var tableWithIndexes *diff.TableDiff
 		for i := range schemaDiff.TablesToCreate {
-			if schemaDiff.TablesToCreate[i].Schema.Table == "test_postgresql_users" {
+			if schemaDiff.TablesToCreate[i].Schema.Table == "test_postgre_sql_users" {
 				tableWithIndexes = &schemaDiff.TablesToCreate[i]
 				break
 			}
@@ -398,7 +398,7 @@ func TestPostgreSQLSchemaDiff_IndexesAndRelationships(t *testing.T) {
 		// Find the table with relationships
 		var tableWithRelationships *diff.TableDiff
 		for i := range schemaDiff.TablesToCreate {
-			if schemaDiff.TablesToCreate[i].Schema.Table == "test_postgresql_relationships" {
+			if schemaDiff.TablesToCreate[i].Schema.Table == "test_postgre_sql_relationships" {
 				tableWithRelationships = &schemaDiff.TablesToCreate[i]
 				break
 			}
@@ -441,7 +441,7 @@ func TestPostgreSQLSchemaDiff_IndexesAndRelationships(t *testing.T) {
 		// Find the table with complex indexes
 		var tableWithComplexIndexes *diff.TableDiff
 		for i := range schemaDiff.TablesToCreate {
-			if schemaDiff.TablesToCreate[i].Schema.Table == "test_postgresql_complex_indexes" {
+			if schemaDiff.TablesToCreate[i].Schema.Table == "test_postgre_sql_complex_indexes" {
 				tableWithComplexIndexes = &schemaDiff.TablesToCreate[i]
 				break
 			}
@@ -511,7 +511,7 @@ func TestPostgreSQLSchemaDiff_IndexesAndRelationships(t *testing.T) {
 		// Find the modified table
 		var modifiedTable *diff.TableDiff
 		for i := range schemaDiff.TablesToModify {
-			if schemaDiff.TablesToModify[i].Schema.Table == "test_postgresql_users" {
+			if schemaDiff.TablesToModify[i].Schema.Table == "test_postgre_sql_users" {
 				modifiedTable = &schemaDiff.TablesToModify[i]
 				break
 			}
@@ -521,7 +521,7 @@ func TestPostgreSQLSchemaDiff_IndexesAndRelationships(t *testing.T) {
 		if modifiedTable == nil {
 			// Check if the table was recreated instead of modified
 			for i := range schemaDiff.TablesToCreate {
-				if schemaDiff.TablesToCreate[i].Schema.Table == "test_postgresql_user_with_additional_indexes" {
+				if schemaDiff.TablesToCreate[i].Schema.Table == "test_postgre_sql_user_with_additional_indexes" {
 					modifiedTable = &schemaDiff.TablesToCreate[i]
 					break
 				}
@@ -614,7 +614,7 @@ func TestPostgreSQLIndexAndForeignKeyChanges(t *testing.T) {
 		// Find the modified table
 		var modifiedTable *diff.TableDiff
 		for i := range schemaDiff.TablesToModify {
-			if schemaDiff.TablesToModify[i].Schema.Table == "test_postgresql_users" {
+			if schemaDiff.TablesToModify[i].Schema.Table == "test_postgre_sql_users" {
 				modifiedTable = &schemaDiff.TablesToModify[i]
 				break
 			}
@@ -624,7 +624,7 @@ func TestPostgreSQLIndexAndForeignKeyChanges(t *testing.T) {
 		if modifiedTable == nil {
 			// Check if the table was recreated instead of modified
 			for i := range schemaDiff.TablesToCreate {
-				if schemaDiff.TablesToCreate[i].Schema.Table == "test_postgresql_user_with_new_indexes" {
+				if schemaDiff.TablesToCreate[i].Schema.Table == "test_postgre_sql_user_with_new_indexes" {
 					modifiedTable = &schemaDiff.TablesToCreate[i]
 					break
 				}
@@ -677,7 +677,7 @@ func TestPostgreSQLIndexAndForeignKeyChanges(t *testing.T) {
 		// Find the modified table or new table
 		var targetTable *diff.TableDiff
 		for i := range schemaDiff.TablesToModify {
-			if schemaDiff.TablesToModify[i].Schema.Table == "test_postgresql_users" {
+			if schemaDiff.TablesToModify[i].Schema.Table == "test_postgre_sql_users" {
 				targetTable = &schemaDiff.TablesToModify[i]
 				break
 			}
@@ -686,7 +686,7 @@ func TestPostgreSQLIndexAndForeignKeyChanges(t *testing.T) {
 		// If no modifications found, check if the table was recreated
 		if targetTable == nil {
 			for i := range schemaDiff.TablesToCreate {
-				if schemaDiff.TablesToCreate[i].Schema.Table == "test_postgresql_user_with_new_fks" {
+				if schemaDiff.TablesToCreate[i].Schema.Table == "test_postgre_sql_user_with_new_fks" {
 					targetTable = &schemaDiff.TablesToCreate[i]
 					break
 				}
@@ -734,9 +734,9 @@ func TestPostgreSQLIndexAndForeignKeyChanges(t *testing.T) {
 		var brandTableFound, enhancedProductTableFound bool
 		for _, table := range schemaDiff.TablesToCreate {
 			switch table.Schema.Table {
-			case "test_postgresql_brands":
+			case "test_postgre_sql_brands":
 				brandTableFound = true
-			case "test_postgresql_enhanced_products":
+			case "test_postgre_sql_enhanced_products":
 				enhancedProductTableFound = true
 			}
 		}

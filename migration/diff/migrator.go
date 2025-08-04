@@ -99,6 +99,9 @@ func (m *SchemaMigrator) GetIndexes(tableName string) ([]*schema.Index, error) {
 			Type:   "BTREE", // PostgreSQL default index type
 			Fields: fields,
 			Option: func() string {
+				if isPrimaryKey {
+					return "PRIMARY KEY"
+				}
 				if isUnique {
 					return "UNIQUE"
 				}

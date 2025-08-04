@@ -278,6 +278,18 @@ func (c *SchemaComparer) getCurrentSchema() (map[string]*schema.Schema, error) {
 			Relationships: schema.Relationships{BelongsTo: relationships},
 		}
 
+		for _, field := range fields {
+			if field != nil {
+				field.Schema = parsedSchema
+			}
+		}
+
+		for _, rel := range relationships {
+			if rel != nil && rel.Field != nil {
+				rel.Field.Schema = parsedSchema
+			}
+		}
+
 		// Store database indexes and relationships for comparison
 		// We'll use a custom approach to compare these later
 		if len(indexes) > 0 || len(relationships) > 0 {
@@ -378,13 +390,21 @@ func (c *SchemaComparer) compareTable(current, target *schema.Schema) TableDiff 
 	}
 
 	currentFields := make(map[string]*schema.Field)
-	for _, field := range current.Fields {
-		currentFields[field.DBName] = normalizeFieldMetadata(field)
+	if current.Fields != nil {
+		for _, field := range current.Fields {
+			if field != nil {
+				currentFields[field.DBName] = normalizeFieldMetadata(field)
+			}
+		}
 	}
 
 	targetFields := make(map[string]*schema.Field)
-	for _, field := range target.Fields {
-		targetFields[field.DBName] = normalizeFieldMetadata(field)
+	if target.Fields != nil {
+		for _, field := range target.Fields {
+			if field != nil {
+				targetFields[field.DBName] = normalizeFieldMetadata(field)
+			}
+		}
 	}
 
 	for _, field := range gormDefaultFields() {
@@ -439,8 +459,12 @@ func (c *SchemaComparer) compareTable(current, target *schema.Schema) TableDiff 
 		currentIndexes[idx.Name] = idx
 	}
 	targetIndexes := make(map[string]*schema.Index)
-	for _, idx := range target.ParseIndexes() {
-		targetIndexes[idx.Name] = idx
+	if target != nil {
+		for _, idx := range target.ParseIndexes() {
+			if idx != nil {
+				targetIndexes[idx.Name] = idx
+			}
+		}
 	}
 
 	for name, targetIdx := range targetIndexes {
@@ -521,6 +545,7 @@ func normalizeFieldMetadata(field *schema.Field) *schema.Field {
 		Scale:           field.Scale,
 		Comment:         field.Comment,
 		IgnoreMigration: field.IgnoreMigration,
+		Schema:          field.Schema,
 	}
 
 	return normalized

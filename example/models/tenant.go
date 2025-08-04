@@ -21,7 +21,8 @@ type Tenant struct {
 	IsDeleted     bool
 	DeletedAt     *time.Time
 	OwnerID       int
-	TenantType    uint
 	ContractStart time.Time
 	ContractEnd   time.Time
+	UserManagerID int
+	UserManager   *User `gorm:"foreignKey:UserManagerID"`
 }

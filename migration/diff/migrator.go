@@ -45,7 +45,7 @@ func (m *SchemaMigrator) GetIndexes(tableName string) ([]*schema.Index, error) {
 		return []*schema.Index{}, nil
 	}
 
-	if m.db.Dialector.Name() != "postgres" {
+	if m.db.Name() != "postgres" {
 		return []*schema.Index{}, nil
 	}
 
@@ -122,7 +122,7 @@ func (m *SchemaMigrator) GetRelationships(tableName string) ([]*schema.Relations
 		return []*schema.Relationship{}, nil
 	}
 
-	if m.db.Dialector.Name() != "postgres" {
+	if m.db.Name() != "postgres" {
 		return []*schema.Relationship{}, nil
 	}
 

@@ -47,7 +47,6 @@ func (m *SchemaMigrator) GetIndexes(tableName string) ([]*schema.Index, error) {
 	query := `
 	SELECT 
 		i.indexname,
-		i.indexdef,
 		ix.indisunique,
 		ix.indisprimary,
 		array_to_string(array_agg(a.attname ORDER BY t.ordinality), ',') as column_names

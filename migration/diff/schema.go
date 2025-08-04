@@ -425,8 +425,17 @@ func (c *SchemaComparer) compareTable(current, target *schema.Schema) TableDiff 
 		}
 	}
 
+	migrator := NewSchemaMigrator(c.db)
+
 	currentIndexes := make(map[string]*schema.Index)
-	for _, idx := range current.ParseIndexes() {
+
+	indexes, err := migrator.GetIndexes(current.Table)
+
+	if err != nil {
+		fmt.Printf("[DEBUG] failed to get indexes for table %s: %v\n", current.Table, err)
+	}
+
+	for _, idx := range indexes {
 		currentIndexes[idx.Name] = idx
 	}
 	targetIndexes := make(map[string]*schema.Index)
@@ -444,6 +453,9 @@ func (c *SchemaComparer) compareTable(current, target *schema.Schema) TableDiff 
 
 	if len(current.Fields) > 0 {
 		for name, currentIdx := range currentIndexes {
+			if strings.HasSuffix(name, "pkey") {
+				continue
+			}
 			if _, exists := targetIndexes[name]; !exists {
 				diff.IndexesToDrop = append(diff.IndexesToDrop, currentIdx)
 			}
@@ -468,10 +480,11 @@ func (c *SchemaComparer) compareTable(current, target *schema.Schema) TableDiff 
 
 	for fieldName, targetRel := range targetRelationships {
 		if _, exists := currentRelationships[fieldName]; !exists {
-			fmt.Printf("column name %s fk does not exist\n", fieldName)
+			if debugDiffOutput {
+				fmt.Printf("[DEBUG] column name %s fk does not exist\n", fieldName)
+			}
 			diff.ForeignKeysToAdd = append(diff.ForeignKeysToAdd, targetRel)
 		} else if !relationshipsEqual(currentRelationships[fieldName], targetRel) {
-			fmt.Printf("column name %s fk rel not equal to target\n", fieldName)
 			diff.ForeignKeysToAdd = append(diff.ForeignKeysToAdd, targetRel)
 		}
 	}

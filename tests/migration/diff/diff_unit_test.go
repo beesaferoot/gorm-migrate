@@ -5,6 +5,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"gorm.io/gorm/schema"
 
@@ -109,6 +110,13 @@ type TestBrand struct {
 	Description string
 }
 
+// createTestDB creates a test database for unit tests
+func createTestDB(t *testing.T) *gorm.DB {
+	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+	require.NoError(t, err)
+	return db
+}
+
 // TestSchemaComparerUnit tests the core schema comparison logic
 func TestSchemaComparerUnit(t *testing.T) {
 	t.Run("No Changes - Identical Schemas", func(t *testing.T) {
@@ -125,7 +133,11 @@ func TestSchemaComparerUnit(t *testing.T) {
 			{Name: "age", DBName: "age", DataType: "int"},
 		})
 
-		comparer := diff.NewSchemaComparer(nil)
+		// Create a mock database for unit tests
+		db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+		require.NoError(t, err)
+
+		comparer := diff.NewSchemaComparer(db)
 		tableDiff := comparer.CompareTable(schema1, schema2)
 
 		assert.True(t, tableDiff.IsEmpty(), "Should detect no changes between identical schemas")
@@ -148,7 +160,7 @@ func TestSchemaComparerUnit(t *testing.T) {
 			{Name: "age", DBName: "age", DataType: "int"}, // New field
 		})
 
-		comparer := diff.NewSchemaComparer(nil)
+		comparer := diff.NewSchemaComparer(createTestDB(t))
 		tableDiff := comparer.CompareTable(currentSchema, targetSchema)
 
 		assert.False(t, tableDiff.IsEmpty(), "Should detect changes when adding new field")
@@ -171,7 +183,7 @@ func TestSchemaComparerUnit(t *testing.T) {
 			{Name: "age", DBName: "age", DataType: "int64"}, // Changed from int to int64
 		})
 
-		comparer := diff.NewSchemaComparer(nil)
+		comparer := diff.NewSchemaComparer(createTestDB(t))
 		tableDiff := comparer.CompareTable(currentSchema, targetSchema)
 
 		// With our normalization, int and int64 should be treated as equivalent
@@ -206,7 +218,7 @@ func TestSchemaComparerUnit(t *testing.T) {
 					{Name: "id", DBName: "id", DataType: schema.DataType(tc.type2), PrimaryKey: true},
 				})
 
-				comparer := diff.NewSchemaComparer(nil)
+				comparer := diff.NewSchemaComparer(createTestDB(t))
 				tableDiff := comparer.CompareTable(currentSchema, targetSchema)
 
 				if tc.expected {
@@ -231,7 +243,7 @@ func TestSchemaComparerUnit(t *testing.T) {
 			{Name: "Name", DBName: "name", DataType: "string"},
 		})
 
-		comparer := diff.NewSchemaComparer(nil)
+		comparer := diff.NewSchemaComparer(createTestDB(t))
 		tableDiff := comparer.CompareTable(currentSchema, targetSchema)
 
 		assert.True(t, tableDiff.IsEmpty(), "Should handle case-insensitive field names")
@@ -247,7 +259,7 @@ func TestSchemaComparerUnit(t *testing.T) {
 			{Name: "id", DBName: "id", DataType: "uint", PrimaryKey: true, AutoIncrement: true, NotNull: true},
 		})
 
-		comparer := diff.NewSchemaComparer(nil)
+		comparer := diff.NewSchemaComparer(createTestDB(t))
 		tableDiff := comparer.CompareTable(currentSchema, targetSchema)
 
 		// Should be considered equivalent due to type normalization
@@ -273,7 +285,7 @@ func TestSchemaComparerUnit(t *testing.T) {
 			{Name: "active", DBName: "active", DataType: "bool"},
 		})
 
-		comparer := diff.NewSchemaComparer(nil)
+		comparer := diff.NewSchemaComparer(createTestDB(t))
 		tableDiff := comparer.CompareTable(currentSchema, targetSchema)
 
 		assert.False(t, tableDiff.IsEmpty(), "Should detect changes when adding indexed fields")
@@ -315,7 +327,7 @@ func TestSchemaComparerUnit(t *testing.T) {
 			{Name: "group_id", DBName: "group_id", DataType: "uint"},
 		})
 
-		comparer := diff.NewSchemaComparer(nil)
+		comparer := diff.NewSchemaComparer(createTestDB(t))
 		tableDiff := comparer.CompareTable(currentSchema, targetSchema)
 
 		assert.False(t, tableDiff.IsEmpty(), "Should detect changes when adding foreign key field")
@@ -352,7 +364,7 @@ func TestSchemaComparerUnit(t *testing.T) {
 			{Name: "active", DBName: "active", DataType: "bool"},
 		})
 
-		comparer := diff.NewSchemaComparer(nil)
+		comparer := diff.NewSchemaComparer(createTestDB(t))
 		tableDiff := comparer.CompareTable(currentSchema, targetSchema)
 
 		assert.False(t, tableDiff.IsEmpty(), "Should detect changes when adding indexes and foreign keys")
@@ -390,7 +402,7 @@ func TestSchemaDiffUnit(t *testing.T) {
 			}),
 		}
 
-		comparer := diff.NewSchemaComparer(nil)
+		comparer := diff.NewSchemaComparer(createTestDB(t))
 		schemaDiff, err := comparer.CompareSchemas(currentSchema, targetSchema)
 		require.NoError(t, err)
 
@@ -417,7 +429,7 @@ func TestSchemaDiffUnit(t *testing.T) {
 			}),
 		}
 
-		comparer := diff.NewSchemaComparer(nil)
+		comparer := diff.NewSchemaComparer(createTestDB(t))
 		schemaDiff, err := comparer.CompareSchemas(currentSchema, targetSchema)
 		require.NoError(t, err)
 
@@ -442,7 +454,7 @@ func TestSchemaDiffUnit(t *testing.T) {
 			}),
 		}
 
-		comparer := diff.NewSchemaComparer(nil)
+		comparer := diff.NewSchemaComparer(createTestDB(t))
 		schemaDiff, err := comparer.CompareSchemas(currentSchema, targetSchema)
 		require.NoError(t, err)
 

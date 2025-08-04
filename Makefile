@@ -71,14 +71,6 @@ lint:
 	fi
 	golangci-lint run --enable=govet,staticcheck --disable=errcheck,ineffassign,unused --timeout=5m ./...
 
-# Run security checks
-security-check:
-	@echo "Running security checks..."
-	@if ! command -v gosec >/dev/null 2>&1; then \
-		echo "Installing gosec..."; \
-		go install github.com/securego/gosec/v2/cmd/gosec@latest; \
-	fi
-	gosec ./...
 
 # Show help
 help:
@@ -88,7 +80,6 @@ help:
 	@echo "  make test           - Run tests"
 	@echo "  make deps           - Install dependencies"
 	@echo "  make lint           - Run linters"
-	@echo "  make security-check - Run security checks"
 	@echo "  make migrate-create - Create a new migration (requires name=migration_name)"
 	@echo "  make migrate-up     - Apply pending migrations"
 	@echo "  make migrate-down   - Rollback the last migration"

@@ -271,15 +271,11 @@ func (c *SchemaComparer) getCurrentSchema() (map[string]*schema.Schema, error) {
 			}
 		}
 
-		// Create relationships structure
-		relationshipsStruct := schema.Relationships{}
-		relationshipsStruct.BelongsTo = append(relationshipsStruct.BelongsTo, relationships...)
-
 		parsedSchema := &schema.Schema{
 			Name:          toExportedFieldName(tableName),
 			Table:         tableName,
 			Fields:        fields,
-			Relationships: relationshipsStruct,
+			Relationships: schema.Relationships{BelongsTo: relationships},
 		}
 
 		// Store database indexes and relationships for comparison

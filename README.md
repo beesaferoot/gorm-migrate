@@ -9,10 +9,10 @@ Automatically generate database migrations from your GORM models by comparing th
 
 ## Features
 
-- 🔄 **Auto-generate migrations** from GORM model changes
-- 🎯 **Smart comparison** - only generates migrations for actual changes
-- 📊 **Case-insensitive** table and column name handling
-- 🚀 **Almost Zero false positives** with advanced type normalization
+- Generate migrations automatically by comparing your GORM models with the database
+- Only creates migrations when there are actual schema differences
+- Handles case-insensitive table and column names correctly
+- Reduces false positives through proper type normalization (e.g., `int`/`bigint`/`integer` are treated as equivalent)
 
 ## Quick Start
 

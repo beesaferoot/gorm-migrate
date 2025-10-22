@@ -9,8 +9,8 @@ import (
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 
-	"github.com/beesaferoot/gorm-schema/migration"
-	"github.com/beesaferoot/gorm-schema/migration/commands"
+	"github.com/beesaferoot/gorm-migrate/migration"
+	"github.com/beesaferoot/gorm-migrate/migration/commands"
 )
 
 func TestRegisterCmd(t *testing.T) {

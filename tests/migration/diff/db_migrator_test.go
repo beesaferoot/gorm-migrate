@@ -9,7 +9,7 @@ import (
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 
-	"github.com/beesaferoot/gorm-schema/migration/diff"
+	"github.com/beesaferoot/gorm-migrate/migration/diff"
 )
 
 // TestMigratorUser is a test model for testing indexes

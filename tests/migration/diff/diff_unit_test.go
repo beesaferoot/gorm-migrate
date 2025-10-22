@@ -9,7 +9,7 @@ import (
 	"gorm.io/gorm"
 	"gorm.io/gorm/schema"
 
-	"github.com/beesaferoot/gorm-schema/migration/diff"
+	"github.com/beesaferoot/gorm-migrate/migration/diff"
 )
 
 // TestModels for unit testing

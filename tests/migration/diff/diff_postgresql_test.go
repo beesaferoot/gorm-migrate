@@ -9,7 +9,7 @@ import (
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 
-	"github.com/beesaferoot/gorm-schema/migration/diff"
+	"github.com/beesaferoot/gorm-migrate/migration/diff"
 )
 
 // PostgreSQL-specific test models for index and relationship testing

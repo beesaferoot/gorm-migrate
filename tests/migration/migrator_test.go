@@ -1,10 +1,11 @@
 package migration_test
 
 import (
-	"github.com/beesaferoot/gorm-schema/migration"
-	"github.com/beesaferoot/gorm-schema/migration/driver"
 	"testing"
 	"time"
+
+	"github.com/beesaferoot/gorm-migrate/migration"
+	"github.com/beesaferoot/gorm-migrate/migration/driver"
 
 	"github.com/stretchr/testify/assert"
 	"gorm.io/driver/sqlite"

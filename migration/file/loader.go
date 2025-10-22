@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/beesaferoot/gorm-schema/migration"
+	"github.com/beesaferoot/gorm-migrate/migration"
 
 	"gorm.io/gorm"
 )

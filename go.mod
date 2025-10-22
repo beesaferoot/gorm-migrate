@@ -1,4 +1,4 @@
-module github.com/beesaferoot/gorm-schema
+module github.com/beesaferoot/gorm-migrate
 
 go 1.23.0
 

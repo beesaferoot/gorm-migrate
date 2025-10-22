@@ -9,8 +9,8 @@ import (
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 
-	"github.com/beesaferoot/gorm-schema/migration/diff"
-	"github.com/beesaferoot/gorm-schema/migration/generator"
+	"github.com/beesaferoot/gorm-migrate/migration/diff"
+	"github.com/beesaferoot/gorm-migrate/migration/generator"
 )
 
 // ModifiedUser is a modified version of the User model for testing.

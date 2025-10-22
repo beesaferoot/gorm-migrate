@@ -1,8 +1,9 @@
 package driver
 
 import (
-	"github.com/beesaferoot/gorm-schema/migration"
 	"time"
+
+	"github.com/beesaferoot/gorm-migrate/migration"
 
 	"gorm.io/gorm"
 )

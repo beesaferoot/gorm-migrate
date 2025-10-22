@@ -5,9 +5,9 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/beesaferoot/gorm-schema/migration/diff"
-	"github.com/beesaferoot/gorm-schema/migration/generator"
-	modelparser "github.com/beesaferoot/gorm-schema/migration/parser"
+	"github.com/beesaferoot/gorm-migrate/migration/diff"
+	"github.com/beesaferoot/gorm-migrate/migration/generator"
+	modelparser "github.com/beesaferoot/gorm-migrate/migration/parser"
 )
 
 func GenerateCmd() *cobra.Command {

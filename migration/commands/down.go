@@ -5,7 +5,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/beesaferoot/gorm-schema/migration"
+	"github.com/beesaferoot/gorm-migrate/migration"
 )
 
 func DownCmd() *cobra.Command {
@@ -76,4 +76,4 @@ func DownCmd() *cobra.Command {
 	cmd.Flags().Bool("debug", false, "Enable debug output")
 
 	return cmd
-} 
+}

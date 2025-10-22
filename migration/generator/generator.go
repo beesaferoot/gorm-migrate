@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/beesaferoot/gorm-schema/migration/diff"
+	"github.com/beesaferoot/gorm-migrate/migration/diff"
 )
 
 // Generator helps create new migration files
@@ -73,7 +73,7 @@ func (g *Generator) CreateMigration(name string) error {
 	content := fmt.Sprintf(`package migrations
 
 import (
-	"github.com/beesaferoot/gorm-schema/migration"
+	"github.com/beesaferoot/gorm-migrate/migration"
 	"gorm.io/gorm"
 	"time"
 )

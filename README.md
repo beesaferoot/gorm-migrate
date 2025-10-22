@@ -1,8 +1,8 @@
-# GORM Schema Migration Tool
+# GORM Migrate - Migration Tool
 
-[![CI](https://github.com/beesaferoot/gorm-schema/workflows/CI/badge.svg)](https://github.com/beesaferoot/gorm-schema/actions)
-[![Go Report Card](https://goreportcard.com/badge/github.com/beesaferoot/gorm-schema)](https://goreportcard.com/report/github.com/beesaferoot/gorm-schema)
-[![Go Version](https://img.shields.io/github/go-mod/go-version/beesaferoot/gorm-schema)](https://go.dev/)
+[![CI](https://github.com/beesaferoot/gorm-migrate/workflows/CI/badge.svg)](https://github.com/beesaferoot/gorm-migrate/actions)
+[![Go Report Card](https://goreportcard.com/badge/github.com/beesaferoot/gorm-migrate)](https://goreportcard.com/report/github.com/beesaferoot/gorm-migrate)
+[![Go Version](https://img.shields.io/github/go-mod/go-version/beesaferoot/gorm-migrate)](https://go.dev/)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 Automatically generate database migrations from your GORM models by comparing them with the current database schema.
@@ -19,7 +19,7 @@ Automatically generate database migrations from your GORM models by comparing th
 ### 1. Install
 
 ```bash
-go get -u github.com/beesaferoot/gorm-schema@latest
+go get -u github.com/beesaferoot/gorm-migrate@latest
 ```
 
 ### 2. Set up environment
@@ -39,8 +39,8 @@ import (
     "your-project/models" // Import your models package
     "github.com/spf13/cobra"
     "github.com/joho/godotenv"
-    "github.com/beesaferoot/gorm-schema/migration"
-    "github.com/beesaferoot/gorm-schema/migration/commands"
+    "github.com/beesaferoot/gorm-migrate/migration"
+    "github.com/beesaferoot/gorm-migrate/migration/commands"
 )
 
 // Simple registry implementation
@@ -146,7 +146,7 @@ Generated migration:
 package migrations
 
 import (
-    "github.com/beesaferoot/gorm-schema/migration"
+    "github.com/beesaferoot/gorm-migrate/migration"
     "gorm.io/gorm"
     "time"
 )

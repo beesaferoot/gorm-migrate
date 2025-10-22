@@ -7,7 +7,7 @@ GOGET=$(GOCMD) get
 GOMOD=$(GOCMD) mod
 
 # Binary names
-BINARY_NAME=gorm-schema
+BINARY_NAME=gorm-migrate
 BINARY_PATH=bin/$(BINARY_NAME)
 
 # Directories
@@ -20,7 +20,7 @@ all: clean build
 
 # Build the migration tool
 build:
-	@echo "Building gorm-schema tool..."
+	@echo "Building gorm-migrate tool..."
 	@mkdir -p $(BIN_DIR)
 	$(GOBUILD) -o $(BINARY_PATH) ./cmd/gorm-schema
 
@@ -75,7 +75,7 @@ lint:
 # Show help
 help:
 	@echo "Available commands:"
-	@echo "  make build          - Build the gorm-schema tool"
+	@echo "  make build          - Build the gorm-migrate tool"
 	@echo "  make clean          - Clean build files"
 	@echo "  make test           - Run tests"
 	@echo "  make deps           - Install dependencies"

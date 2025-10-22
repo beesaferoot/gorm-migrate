@@ -1,9 +1,9 @@
 package main
 
 import (
-	"github.com/beesaferoot/gorm-schema/example/user-project/models" // User's models package - CHANGE THIS
-	"github.com/beesaferoot/gorm-schema/migration"
-	"github.com/beesaferoot/gorm-schema/migration/commands"
+	"github.com/beesaferoot/gorm-migrate/example/user-project/models" // User's models package - CHANGE THIS
+	"github.com/beesaferoot/gorm-migrate/migration"
+	"github.com/beesaferoot/gorm-migrate/migration/commands"
 
 	"github.com/joho/godotenv"
 	"github.com/spf13/cobra"

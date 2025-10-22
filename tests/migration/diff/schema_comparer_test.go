@@ -9,7 +9,7 @@ import (
 	"gorm.io/gorm"
 	"gorm.io/gorm/schema"
 
-	"github.com/beesaferoot/gorm-schema/migration/diff"
+	"github.com/beesaferoot/gorm-migrate/migration/diff"
 )
 
 // createTestDBForSchemaComparer creates a test database for schema comparer unit tests

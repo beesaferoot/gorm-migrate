@@ -6,7 +6,7 @@ import (
 	"gorm.io/gorm"
 	"gorm.io/gorm/schema"
 
-	"github.com/beesaferoot/gorm-schema/migration"
+	"github.com/beesaferoot/gorm-migrate/migration"
 )
 
 type ModelParser struct {

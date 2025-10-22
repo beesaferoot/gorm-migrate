@@ -14,8 +14,8 @@ type TestModel struct {
 // MockModelRegistry implements ModelRegistry for testing
 type MockModelRegistry struct{}
 
-func (r *MockModelRegistry) GetModels() map[string]interface{} {
-	return map[string]interface{}{
+func (r *MockModelRegistry) GetModels() map[string]any {
+	return map[string]any{
 		"TestModel": TestModel{},
 	}
 }

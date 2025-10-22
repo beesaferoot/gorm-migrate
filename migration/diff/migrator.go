@@ -9,7 +9,7 @@ import (
 )
 
 type Migrator interface {
-	ColumnTypes(dst interface{}) ([]gorm.ColumnType, error)
+	ColumnTypes(dst any) ([]gorm.ColumnType, error)
 	GetTables() ([]string, error)
 	GetIndexes(tableName string) ([]*schema.Index, error)
 	GetRelationships(tableName string) ([]*schema.Relationship, error)
@@ -27,7 +27,7 @@ func NewSchemaMigrator(db *gorm.DB) Migrator {
 	}
 }
 
-func (m *SchemaMigrator) ColumnTypes(dst interface{}) ([]gorm.ColumnType, error) {
+func (m *SchemaMigrator) ColumnTypes(dst any) ([]gorm.ColumnType, error) {
 	return m.gormMigrator.ColumnTypes(dst)
 }
 
@@ -53,7 +53,7 @@ func (m *SchemaMigrator) GetIndexes(tableName string) ([]*schema.Index, error) {
 
 	// Query to get index information from PostgreSQL system catalogs
 	query := `
-	SELECT 
+	SELECT
 		i.indexname,
 		ix.indisunique,
 		ix.indisprimary,
@@ -133,7 +133,7 @@ func (m *SchemaMigrator) GetRelationships(tableName string) ([]*schema.Relations
 
 	// Query to get foreign key information from PostgreSQL information_schema
 	query := `
-	SELECT 
+	SELECT
 		tc.constraint_name,
 		tc.table_name,
 		kcu.column_name,
@@ -141,8 +141,8 @@ func (m *SchemaMigrator) GetRelationships(tableName string) ([]*schema.Relations
 		ccu.column_name AS referenced_column_name,
 		rc.delete_rule AS on_delete,
 		rc.update_rule AS on_update
-	FROM 
-		information_schema.table_constraints AS tc 
+	FROM
+		information_schema.table_constraints AS tc
 		JOIN information_schema.key_column_usage AS kcu
 			ON tc.constraint_name = kcu.constraint_name
 			AND tc.table_schema = kcu.table_schema
@@ -152,10 +152,10 @@ func (m *SchemaMigrator) GetRelationships(tableName string) ([]*schema.Relations
 		JOIN information_schema.referential_constraints AS rc
 			ON tc.constraint_name = rc.constraint_name
 			AND tc.table_schema = rc.constraint_schema
-	WHERE 
-		tc.constraint_type = 'FOREIGN KEY' 
+	WHERE
+		tc.constraint_type = 'FOREIGN KEY'
 		AND tc.table_name = $1
-	ORDER BY 
+	ORDER BY
 		tc.constraint_name, kcu.ordinal_position;
 	`
 

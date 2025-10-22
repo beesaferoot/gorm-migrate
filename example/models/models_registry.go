@@ -1,6 +1,6 @@
 package models
 
-var ModelTypeRegistry = map[string]interface{}{
+var ModelTypeRegistry = map[string]any{
 	"Apartment":             Apartment{},
 	"ApartmentBookingPrice": ApartmentBookingPrice{},
 	"ApartmentContract":     ApartmentContract{},
@@ -8,4 +8,5 @@ var ModelTypeRegistry = map[string]interface{}{
 	"Estate":                Estate{},
 	"Tenant":                Tenant{},
 	"User":                  User{},
+	"CustomSchema":          CustomSchema{},
 }

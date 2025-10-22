@@ -32,7 +32,7 @@ jobs:
           go tool cover -func=coverage.out
 
       - name: Build
-        run: go build ./cmd/gorm-schema
+        run: go build ./cmd/gorm-migrate
 
   test-postgresql:
     name: Test PostgreSQL
@@ -47,7 +47,7 @@ jobs:
         env:
           POSTGRES_PASSWORD: postgres
           POSTGRES_USER: postgres
-          POSTGRES_DB: gorm_schema_test
+          POSTGRES_DB: gorm_migrate_test
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
@@ -81,12 +81,12 @@ jobs:
           POSTGRES_PORT: 5432
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: gorm_schema_test
+          POSTGRES_DB: gorm_migrate_test
         run: |
           go test -v -run "TestPostgreSQL" ./tests/migration/diff/
 
       - name: Build
-        run: go build ./cmd/gorm-schema
+        run: go build ./cmd/gorm-migrate
 
   lint:
     name: Lint

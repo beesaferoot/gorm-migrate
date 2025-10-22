@@ -9,5 +9,5 @@ main.go.txt
 ast_dump.go.txt
 .zed
 gorm-schema
-gorm-schema.exe
+gorm-migrate.exe
 test.log

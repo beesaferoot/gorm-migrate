@@ -22,7 +22,7 @@ all: clean build
 build:
 	@echo "Building gorm-migrate tool..."
 	@mkdir -p $(BIN_DIR)
-	$(GOBUILD) -o $(BINARY_PATH) ./cmd/gorm-schema
+	$(GOBUILD) -o $(BINARY_PATH) ./cmd/gorm-migrate
 
 # Clean build files
 clean:
@@ -47,19 +47,19 @@ migrate-create:
 		exit 1; \
 	fi
 	@echo "Creating new migration: $(name)..."
-	$(GOBUILD) -o $(BINARY_PATH) ./cmd/gorm-schema
+	$(GOBUILD) -o $(BINARY_PATH) ./cmd/gorm-migrate
 	./$(BINARY_PATH) create $(name)
 
 # Apply pending migrations
 migrate-up:
 	@echo "Applying pending migrations..."
-	$(GOBUILD) -o $(BINARY_PATH) ./cmd/gorm-schema
+	$(GOBUILD) -o $(BINARY_PATH) ./cmd/gorm-migrate
 	./$(BINARY_PATH) up
 
 # Rollback the last migration
 migrate-down:
 	@echo "Rolling back last migration..."
-	$(GOBUILD) -o $(BINARY_PATH) ./cmd/gorm-schema
+	$(GOBUILD) -o $(BINARY_PATH) ./cmd/gorm-migrate
 	./$(BINARY_PATH) down
 
 # Run linters

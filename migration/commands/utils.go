@@ -37,7 +37,18 @@ func validateMigrationsPath(path string) (string, error) {
 		return "", fmt.Errorf("failed to get working directory: %v", err)
 	}
 
-	if !strings.HasPrefix(absPath, wd) {
+	// possible issue -> if !strings.HasPrefix("root/data-tail/go/chain", "root/data")
+	//if !strings.HasPrefix(absPath, wd) {
+	//return "", fmt.Errorf("migrations path must be within working directory")
+	//}
+
+	rel, err := filepath.Rel(wd, absPath)
+
+	if err != nil {
+		return "", fmt.Errorf("failed to determine relative path: %v", err)
+	}
+
+	if strings.HasPrefix(rel, "..") || rel == ".." {
 		return "", fmt.Errorf("migrations path must be within working directory")
 	}
 
@@ -89,7 +100,17 @@ func validateModelPath(path string) (string, error) {
 		return "", fmt.Errorf("failed to get working directory: %w", err)
 	}
 
-	if !strings.HasPrefix(absPath, wd) {
+	//if !strings.HasPrefix(absPath, wd) {
+	//return "", fmt.Errorf("model path must be within working directory")
+	//}
+
+	rel, err := filepath.Rel(wd, absPath)
+
+	if err != nil {
+		return "", fmt.Errorf("failed to determine relative path: %v", err)
+	}
+
+	if strings.HasPrefix(rel, "..") || rel == ".." {
 		return "", fmt.Errorf("model path must be within working directory")
 	}
 
@@ -148,12 +169,29 @@ func getModels(dirPath string) (string, error) {
 	return contentBuilder.String(), nil
 }
 
+// //gorm:ignore ignores structs with the gorm:ignore in the comment.
+
+const ignore = "gorm:ignore"
+
+func hasIgnore(doc *ast.CommentGroup) bool {
+	if doc == nil {
+		return false
+	}
+	for _, c := range doc.List {
+		text := strings.TrimSpace(strings.TrimPrefix(c.Text, "//"))
+		if text == ignore {
+			return true
+		}
+	}
+	return false
+}
+
 func modelPerser(file string) ([]string, error) {
 	var modelNames []string
 
 	fset := token.NewFileSet()
 
-	node, err := parser.ParseFile(fset, file, nil, 0)
+	node, err := parser.ParseFile(fset, file, nil, parser.ParseComments)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse file: %w", err)
 	}
@@ -177,13 +215,24 @@ func modelPerser(file string) ([]string, error) {
 				continue
 			}
 
+			if hasIgnore(genDecl.Doc) || hasIgnore(typeSpec.Doc) {
+				continue
+			}
+
 			for _, field := range structType.Fields.List {
-				if len(field.Names) == 0 {
-					if selfExpr, ok := field.Type.(*ast.SelectorExpr); ok {
-						if indent, ok := selfExpr.X.(*ast.Ident); ok && indent.Name == "gorm" && selfExpr.Sel.Name == "Model" {
-							modelNames = append(modelNames, typeSpec.Name.Name)
-							break
-						}
+				if len(field.Names) != 0 {
+					continue
+				}
+
+				expr := field.Type
+				if star, ok := expr.(*ast.StarExpr); ok {
+					expr = star.X
+				}
+
+				if selfExpr, ok := expr.(*ast.SelectorExpr); ok {
+					if indent, ok := selfExpr.X.(*ast.Ident); ok && indent.Name == "gorm" && selfExpr.Sel.Name == "Model" {
+						modelNames = append(modelNames, typeSpec.Name.Name)
+						break
 					}
 				}
 			}

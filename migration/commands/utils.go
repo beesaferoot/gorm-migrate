@@ -169,12 +169,29 @@ func getModels(dirPath string) (string, error) {
 	return contentBuilder.String(), nil
 }
 
+// //gorm:ignore ignores structs with the gorm:ignore in the comment.
+
+const ignore = "gorm:ignore"
+
+func hasIgnore(doc *ast.CommentGroup) bool {
+	if doc == nil {
+		return false
+	}
+	for _, c := range doc.List {
+		text := strings.TrimSpace(strings.TrimPrefix(c.Text, "//"))
+		if text == ignore {
+			return true
+		}
+	}
+	return false
+}
+
 func modelPerser(file string) ([]string, error) {
 	var modelNames []string
 
 	fset := token.NewFileSet()
 
-	node, err := parser.ParseFile(fset, file, nil, 0)
+	node, err := parser.ParseFile(fset, file, nil, parser.ParseComments)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse file: %w", err)
 	}
@@ -195,6 +212,10 @@ func modelPerser(file string) ([]string, error) {
 
 			structType, ok := typeSpec.Type.(*ast.StructType)
 			if !ok {
+				continue
+			}
+
+			if hasIgnore(genDecl.Doc) || hasIgnore(typeSpec.Doc) {
 				continue
 			}
 

@@ -24,7 +24,6 @@ func RegisterCmd() *cobra.Command {
 				return fmt.Errorf("failed to validate model path: %w", err)
 			}
 
-			//create model_register.go file:
 			ModelRegistry, err := createModelRegisterFile(validatedPath)
 			if err != nil {
 				return fmt.Errorf("failed to create model registry file: %w", err)
